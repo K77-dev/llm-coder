@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { checkHealth, indexDirectory, getIndexStatus, clearIndex } from '../../lib/api';
+import { DirectoryPicker } from '../DirectoryPicker';
 
 interface HealthStatus {
   status: string;
@@ -19,6 +20,7 @@ export function Sidebar() {
   const [indexMsg, setIndexMsg] = useState('');
   const [indexError, setIndexError] = useState('');
   const [clearing, setClearing] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const loadHealth = useCallback(() => {
     checkHealth().then(setHealth).catch(() => null);
@@ -107,13 +109,22 @@ export function Sidebar() {
             Indexar projeto
           </h3>
           <div className="space-y-2">
-            <input
-              type="text"
-              value={dirPath}
-              onChange={(e) => setDirPath(e.target.value)}
-              placeholder="Caminho: ~/projetos/meu-repo"
-              className="w-full text-xs bg-slate-800 text-slate-200 placeholder-slate-500 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
+            <div className="flex gap-1">
+              <input
+                type="text"
+                value={dirPath}
+                onChange={(e) => setDirPath(e.target.value)}
+                placeholder="~/projetos/meu-repo"
+                className="flex-1 min-w-0 text-xs bg-slate-800 text-slate-200 placeholder-slate-500 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              <button
+                onClick={() => setPickerOpen(true)}
+                title="Navegar no Mac"
+                className="shrink-0 text-sm px-2.5 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white transition-colors"
+              >
+                📂
+              </button>
+            </div>
             <input
               type="text"
               value={dirName}
@@ -187,6 +198,16 @@ export function Sidebar() {
       <div className="px-4 py-3 border-t border-slate-800">
         <p className="text-xs text-slate-500">Code LLM v1.0</p>
       </div>
+
+      {pickerOpen && (
+        <DirectoryPicker
+          onSelect={(path) => {
+            setDirPath(path);
+            setPickerOpen(false);
+          }}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
     </aside>
   );
 }
