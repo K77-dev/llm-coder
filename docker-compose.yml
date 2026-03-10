@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: docker/Dockerfile
+    ports:
+      - "3001:3001"
+    volumes:
+      - ~/.bbts-llm:/root/.bbts-llm
+      - ./logs:/app/logs
+    environment:
+      - NODE_ENV=production
+      - LLM_HOST=http://host.docker.internal:11434
+    env_file:
+      - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:3001
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  bbts-data:
+    driver: local

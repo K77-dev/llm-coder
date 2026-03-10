@@ -1,0 +1,73 @@
+{
+  "name": "bbts-code-llm",
+  "displayName": "BBTS Code LLM",
+  "description": "Assistente de código BBTS — Java, Node.js, React, Angular",
+  "version": "0.1.0",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["AI", "Programming Languages"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "codellm.chat",
+        "title": "BBTS: Abrir Chat"
+      },
+      {
+        "command": "codellm.explain",
+        "title": "BBTS: Explicar Código Selecionado"
+      },
+      {
+        "command": "codellm.generateTests",
+        "title": "BBTS: Gerar Testes para Seleção"
+      },
+      {
+        "command": "codellm.review",
+        "title": "BBTS: Revisar Código Selecionado"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "codellm.chat",
+        "key": "ctrl+shift+b",
+        "mac": "cmd+shift+b"
+      },
+      {
+        "command": "codellm.explain",
+        "key": "ctrl+shift+e",
+        "mac": "cmd+shift+e",
+        "when": "editorHasSelection"
+      }
+    ],
+    "configuration": {
+      "title": "BBTS Code LLM",
+      "properties": {
+        "codellm.apiUrl": {
+          "type": "string",
+          "default": "http://localhost:3001",
+          "description": "URL do backend BBTS Code LLM"
+        },
+        "codellm.model": {
+          "type": "string",
+          "default": "auto",
+          "enum": ["auto", "local", "claude"],
+          "description": "Modelo LLM a usar"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -watch -p tsconfig.json",
+    "package": "vsce package"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.20.9",
+    "axios": "^1.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.10",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.3"
+  }
+}

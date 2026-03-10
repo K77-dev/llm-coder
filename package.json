@@ -1,0 +1,28 @@
+{
+  "name": "bbts-code-llm",
+  "version": "1.0.0",
+  "description": "BBTS Code LLM - Especialista em Java, Node.js, React e Angular",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend",
+    "vscode-extension"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev --workspace=backend\" \"npm run dev --workspace=frontend\"",
+    "build": "npm run build --workspace=backend && npm run build --workspace=frontend",
+    "setup:db": "npx ts-node scripts/setup.ts",
+    "index:repos": "npx ts-node scripts/index-repos.ts",
+    "index:initial": "npx ts-node scripts/index-repos.ts --initial &",
+    "index:stop": "pkill -f 'index-repos' || true",
+    "index:full": "npx ts-node scripts/index-repos.ts --full",
+    "cache:clean": "npx ts-node scripts/cache-clean.ts",
+    "stop": "pkill -f 'next|express|node.*dev' || true",
+    "clean": "rm -rf backend/node_modules frontend/node_modules node_modules"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}

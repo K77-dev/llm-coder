@@ -1,267 +1,99 @@
-# Resumo de Ajustes - BBTS Code LLM PRD
+# Histórico de Mudanças
 
-## 🎯 Foco Principal
-**BBTS Code LLM otimizada para rodar em MacBook Pro M4 (24GB RAM) SEM comprometer o funcionamento**
+## v1.0 — Março 2026
 
----
+### Arquitetura implementada
 
-## 📊 Mudanças Principais
+O projeto saiu de um design baseado em cloud (Pinecone + Claude API + Vercel/Railway) para uma arquitetura **local-first** rodando inteiramente no MacBook Pro M4.
 
-### 1. Arquitetura: Cloud-First → Local-First
-
-**ANTES:**
-```
-Pinecone (Cloud) ← Vector DB
-Claude API (Cloud) ← LLM
-Vercel + Railway ← Deployment
-```
-
-**DEPOIS:**
-```
-SQLite + sqlite-vec (Local) ← Vector DB (200MB RAM, 2-3GB disk)
-Code Llama 13B (Ollama) ← LLM (8-10GB RAM, local)
-MacBook + Cloud hybrid ← Deployment inteligente
-```
+**Stack atual:**
+- **LLM**: `qwen2.5-coder:7b` via Ollama (local, ~5GB RAM)
+- **Embeddings**: `nomic-embed-text` via Ollama (768 dimensões)
+- **Vector DB**: SQLite (`~/.code-llm/vectors.db`) com cosine similarity em memória
+- **Backend**: Node.js/Express + TypeScript (porta 3001)
+- **Frontend**: Next.js 14 + React 18 + Tailwind (porta 3002)
 
 ---
 
-### 2. Requisitos Técnicos
+### Mudanças por componente
 
-| Aspecto | Antes | Depois | Benefício |
-|---------|-------|--------|-----------|
-| **LLM** | Claude API (cloud) | Code Llama 13B local | Zero latência, offline |
-| **Vector DB** | Pinecone ($) | SQLite + sqlite-vec | Free, local, <50ms |
-| **Embedding** | OpenAI API | nomic-embed-text (local) | Free, 2GB |
-| **Backend** | Express + Pinecone SDK | Express + SQLite | Menor footprint |
-| **Deployment** | Vercel + Railway | MacBook + Railway (sync) | Híbrido, escalável |
+#### Backend
+
+**`backend/src/index.ts`**
+- CORS configurado para aceitar origens nas portas 3000, 3001 e 3002
+
+**`backend/src/rag/searcher.ts`**
+- Adicionado filtro de score mínimo `MIN_SCORE = 0.45` — chunks com similaridade abaixo são descartados, evitando contexto irrelevante
+- Adicionada deduplicação por `filePath` antes de retornar os resultados — quando o mesmo arquivo é indexado com nomes de repo diferentes, só o de maior score entra no contexto
+
+**`backend/src/api/routes/index-route.ts`** *(novo)*
+- `POST /api/index` — inicia indexação de um diretório local em background
+- `GET /api/index/status` — retorna `{ isIndexing: boolean }`
+- `DELETE /api/index/:repo` — remove todos os chunks e vetores de um repo específico
+- `DELETE /api/index` — limpa o índice inteiro
+
+**`backend/src/api/routes/index.ts`**
+- Registrado `indexRouter` em `/index`
+
+**`backend/src/llm/prompt-templates/index.ts`**
+- Removidas todas as referências a "BBTS" dos system prompts
+- `buildRAGPrompt`: "Contexto relevante do codebase BBTS:" → "Contexto relevante do codebase:"
+
+**`backend/package.json`**
+- Script `dev` corrigido para carregar `.env` do diretório pai (`dotenv_config_path=../.env`) — necessário ao rodar via npm workspaces
+
+**`backend/src/db/sqlite-client.ts`**
+- Caminho padrão do banco: `~/.code-llm/vectors.db` (era `~/.bbts-llm/`)
+
+#### Frontend
+
+**`frontend/package.json`**
+- Porta alterada de 3000 para **3002** (3000 ocupada pelo Open WebUI do Ollama)
+
+**`frontend/app/page.tsx`**
+- Estava redirecionando para `/chat`, que não existe (route group `(chat)` não cria segmento de URL no App Router)
+- Corrigido: renderiza `ChatInterface` + `Sidebar` diretamente na raiz `/`
+
+**`frontend/lib/api.ts`**
+- Adicionada `indexDirectory(dirPath, name?)` → `POST /api/index`
+- Adicionada `getIndexStatus()` → `GET /api/index/status`
+- Adicionada `clearIndex(repo?)` → `DELETE /api/index` ou `DELETE /api/index/:repo`
+
+**`frontend/components/Sidebar/index.tsx`**
+- Adicionado painel **"Indexar projeto"** com:
+  - Input de caminho do diretório
+  - Input de nome (opcional)
+  - Botão **Indexar** (polling de status a cada 2s enquanto em andamento)
+  - Botão **Limpar índice** (remove todo o índice via `DELETE /api/index`)
+  - Mensagens de sucesso/erro
+- Status de indexação exibido em tempo real na seção **Status**
+- Largura da sidebar aumentada de `w-64` para `w-72`
+
+#### Ambiente
+
+**`.env`** *(criado)*
+```env
+LLM_MODEL=qwen2.5-coder:7b
+EMBEDDING_MODEL=nomic-embed-text
+DB_PATH=~/.code-llm/vectors.db
+JWT_SECRET=dev-secret-local-only
+```
+
+**`.nvmrc`** *(criado)*
+```
+20
+```
+Garante uso do Node.js v20 (obrigatório — `better-sqlite3` falha no v25+).
 
 ---
 
-### 3. Memory Footprint
+### Problemas resolvidos
 
-**ANTES:**
-- Node.js: 2-3GB
-- Pinecone client: Minimal
-- Embeddings: Via API (zero local)
-- Fallback: Nenhum
-- **Total local: ~3GB**
-- **Dependências: Cloud obrigatório**
-
-**DEPOIS:**
-```
-Level 1 - Comfortable (11-13GB):
-├── Node.js + Next.js: 2-3GB
-├── Code Llama 13B: 8-10GB
-├── SQLite + cache: <200MB
-└── Buffer: 1GB
-Result: Ainda 11-13GB FREE ✅
-
-Level 2 - Full Features (14-16GB):
-├── Tudo anterior
-├── Vector index cache: 2-3GB
-└── Buffer: 1GB
-Result: Ainda 8-10GB FREE ✅
-
-🚫 MAX CAP: 20GB (deixar 4GB buffer)
-```
-
----
-
-### 4. Stack Técnico
-
-**Backend (Before):**
-```
-express@4.18 + @pinecone-database/pinecone + @anthropic-sdk/sdk
-- Dependências: 150+ packages
-- Tamanho: ~200MB node_modules
-```
-
-**Backend (After):**
-```
-express@4.18 + sqlite3 + sqlite-vec + ollama + pino
-- Dependências: ~50 packages (67% menos!)
-- Tamanho: ~80MB node_modules
-- Mem overhead: Reduzido 40%
-```
-
-**LLM (Before):**
-```typescript
-const response = await client.messages.create({
-  model: "claude-opus-4-6",
-  // Sempre cloud, latência 1-2s
-})
-```
-
-**LLM (After):**
-```typescript
-const response = await ollama.generate({
-  model: "codellama:13b",
-  // Local, latência 0.5-1s
-  // Fallback automático para Claude se contexto > 30K tokens
-})
-```
-
----
-
-### 5. Fases Atualizadas
-
-| Fase | Timeline | Stack | MacBook Impact | Cloud |
-|------|----------|-------|-----------------|-------|
-| **1: MVP** | 4 semanas | Ollama + SQLite | 11-13GB, offline | Nenhum |
-| **2: Expansion** | +4 semanas | ^ + Railway | 11-13GB, sync | ~$100/mês |
-| **3: Production** | +4 semanas | ^ + Agents | 11-13GB, hybrid | ~$400/mês |
-
----
-
-### 6. Custo Total
-
-**ANTES:**
-- Fase 1: $10K (setup) + $50/mês
-- Fase 2: $26K (setup) + $300/mês
-- Fase 3: $39K (setup) + $2K/mês
-- **Total: $75K + $2,350/mês**
-
-**DEPOIS:**
-- Fase 1: $8K (setup) + $0/mês ✅
-- Fase 2: $24K (setup) + $65/mês ✅
-- Fase 3: $34K (setup) + $600/mês ✅
-- **Total: $66K + $665/mês** (-$9K setup, -$1,685/mês)
-
----
-
-### 7. Vantagens Novas
-
-✅ **Zero Latência em Casa**
-- Local LLM: 0.5-2s vs Cloud: 1-3s
-- RAG search: <50ms (M4 SSD)
-
-✅ **Offline First**
-- Funciona sem internet
-- Fallback automático para cloud se necessário
-
-✅ **Dados Privados**
-- Código nunca sai do MacBook (até sync noturno)
-- Nenhum processamento em servidor externo
-
-✅ **Sem Surpresas de Custo**
-- Code Llama + SQLite são free/open-source
-- Escalabilidade é opção, não necessidade
-
-✅ **Hybrid Scaling**
-- MacBook para dev local
-- Cloud para equipes grandes
-- Ambos sincronizados
-
-✅ **Performance Guaranteed**
-- Memory budget fixo: 11-13GB
-- Monitoramento automático
-- Fallback se exceder limites
-
----
-
-### 8. Instalação Simplificada
-
-**ANTES:**
-```bash
-# Setup Pinecone account
-# Setup Claude API key
-# Deploy a Vercel + Railway
-# Configure CI/CD
-# ~60 minutos + dependências cloud
-```
-
-**DEPOIS:**
-```bash
-brew install ollama
-ollama pull codellama:13b-instruct-q4_K_M  # 8 min, ~8.5GB
-npm install && npm run dev
-# ~15 minutos, tudo local
-```
-
----
-
-### 9. Performance Targets (MacBook M4)
-
-**Antes:**
-- Latência: 1-3s (cloud network)
-- Throughput: Limitado por API rate
-- Offline: ❌ Não funciona
-
-**Depois:**
-```
-✅ Latência P50: <1s (local)
-✅ Latência P95: <2s (local)
-✅ Throughput: Unlimited (local)
-✅ Offline: Sim (com cache)
-✅ Fallback latency: 1-3s (cloud)
-```
-
----
-
-### 10. Roadmap Visual Atualizado
-
-```
-MacBook-First Approach:
-
-Week 1-4: MVP LOCAL
-├── Ollama + Code Llama
-├── SQLite + vector search
-└── Chat offline-first
-    Memory: 11-13GB ✅
-
-Week 5-8: EXPANSION HYBRID
-├── Railway backend (index backup)
-├── VSCode extension
-├── Sync nightly
-    Memory: 11-13GB ✅
-    Cloud: ~$100/mês
-
-Week 9-12: PRODUCTION DISTRIBUTED
-├── Cloud for agents
-├── Local for chat
-├── Fully hybrid
-    Memory: 11-13GB ✅
-    Cloud: ~$400/mês
-```
-
----
-
-## 🔑 Pontos-Chave
-
-1. **Zero Compromise**: MacBook segue rápido, responsivo, cool
-2. **Offline-First**: Funciona completamente desconectado
-3. **Cloud-Optional**: Escalabilidade quando precisar
-4. **Cost-Effective**: ~75% mais barato que versão anterior
-5. **Privacy**: Dados locais, segurança aprimorada
-6. **Developer-Friendly**: Setup 15min vs 60min
-
----
-
-## ✅ Verificação de Sucesso
-
-MacBook Pro M4 (24GB) roda BBTS Code LLM quando:
-
-```bash
-# 1. Memory check
-free -h  # 11-13GB usados máximo
-
-# 2. Swap check
-vm_stat | grep "Pages swapped out"  # <200MB
-
-# 3. CPU check
-ps aux | grep ollama  # <30% CPU avg
-
-# 4. Thermal check
-istats  # <55°C core temp
-
-# 5. Responsiveness check
-# Outros apps rodam sem lag
-# Zoom calls sem travamento
-# Browser não congela
-```
-
----
-
-**Documento ajustado para**: MacBook Pro M4 24GB  
-**Foco**: Zero compromise on performance  
-**Status**: Ready for Phase 1 Implementation
+| Problema | Causa | Solução |
+|----------|-------|---------|
+| `better-sqlite3` falhou ao compilar | Node.js v25 incompatível | Trocar para Node.js v20 via nvm |
+| "Failed to fetch" no frontend | CORS bloqueando porta 3002 | Adicionado `localhost:3002` à lista CORS |
+| Frontend 404 em `/chat` | Route group `(chat)` não cria URL `/chat` | Renderizar chat diretamente em `app/page.tsx` |
+| `.env` não carregado no backend | CWD era `backend/` mas `.env` está na raiz | `dotenv_config_path=../.env` no script dev |
+| Contexto irrelevante nas respostas | Sem threshold de similaridade | `MIN_SCORE = 0.45` em `searcher.ts` |
+| Duplicatas no índice | Mesmo projeto indexado duas vezes com nomes diferentes | Deduplicação por `filePath` + endpoint `DELETE /api/index` |
