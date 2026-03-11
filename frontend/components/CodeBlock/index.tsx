@@ -17,18 +17,18 @@ export function CodeBlock({ code, language = 'plaintext' }: CodeBlockProps) {
   };
 
   return (
-    <div className="relative group rounded-lg overflow-hidden bg-slate-900 border border-slate-700">
-      <div className="flex items-center justify-between px-4 py-2 bg-slate-800 border-b border-slate-700">
-        <span className="text-xs text-slate-400 font-mono">{language}</span>
+    <div className="relative group rounded-lg overflow-hidden bg-slate-50 dark:bg-neutral-900 border border-slate-300 dark:border-neutral-700">
+      <div className="flex items-center justify-between px-4 py-2 bg-slate-100 dark:bg-neutral-800 border-b border-slate-300 dark:border-neutral-700">
+        <span className="text-xs text-slate-500 dark:text-neutral-400 font-mono">{language}</span>
         <button
           onClick={handleCopy}
-          className="text-xs text-slate-400 hover:text-white transition-colors opacity-0 group-hover:opacity-100"
+          className="text-xs text-slate-500 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white transition-colors opacity-0 group-hover:opacity-100"
         >
           {copied ? 'Copiado!' : 'Copiar'}
         </button>
       </div>
       <pre className="p-4 overflow-x-auto text-sm">
-        <code className={`text-slate-300 font-mono language-${language}`}>
+        <code className={`text-slate-700 dark:text-neutral-300 font-mono language-${language}`}>
           {code}
         </code>
       </pre>

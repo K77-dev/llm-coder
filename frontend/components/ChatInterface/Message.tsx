@@ -29,21 +29,21 @@ function FileChangeCard({ change }: { change: FileChange }) {
 
   return (
     <div className={`rounded-lg border text-xs overflow-hidden ${
-      status === 'applied' ? 'border-green-600/40 bg-green-950/20' :
-      status === 'error'   ? 'border-red-600/40 bg-red-950/20' :
-                             'border-slate-600/40 bg-slate-900/60'
+      status === 'applied' ? 'border-green-600/40 bg-green-50 dark:bg-green-950/20' :
+      status === 'error'   ? 'border-red-600/40 bg-red-50 dark:bg-red-950/20' :
+                             'border-slate-300 dark:border-neutral-600/40 bg-slate-50 dark:bg-neutral-900/60'
     }`}>
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 bg-slate-800/60">
+      <div className="flex items-center justify-between px-3 py-2 bg-slate-100 dark:bg-neutral-800/60">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-yellow-500">📄</span>
-          <span className="font-mono text-slate-200 truncate">{change.path}</span>
-          <span className="text-slate-500 shrink-0">{lines} linhas</span>
+          <span className="font-mono text-slate-700 dark:text-neutral-200 truncate">{change.path}</span>
+          <span className="text-slate-400 dark:text-neutral-500 shrink-0">{lines} linhas</span>
         </div>
         <div className="flex items-center gap-1.5 shrink-0 ml-2">
           <button
             onClick={() => setExpanded((v) => !v)}
-            className="px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-300 transition-colors"
+            className="px-2 py-1 rounded bg-slate-200 dark:bg-neutral-700 hover:bg-slate-300 dark:hover:bg-neutral-600 text-slate-600 dark:text-neutral-300 transition-colors"
           >
             {expanded ? 'Ocultar' : 'Ver'}
           </button>
@@ -69,12 +69,12 @@ function FileChangeCard({ change }: { change: FileChange }) {
 
       {/* Error message */}
       {status === 'error' && errorMsg && (
-        <p className="px-3 py-1.5 text-red-400 text-xs bg-red-950/30">{errorMsg}</p>
+        <p className="px-3 py-1.5 text-red-500 dark:text-red-400 text-xs bg-red-50 dark:bg-red-950/30">{errorMsg}</p>
       )}
 
       {/* Code preview */}
       {expanded && (
-        <pre className="px-3 py-3 overflow-x-auto text-slate-300 font-mono text-xs leading-relaxed max-h-80 overflow-y-auto">
+        <pre className="px-3 py-3 overflow-x-auto text-slate-600 dark:text-neutral-300 font-mono text-xs leading-relaxed max-h-80 overflow-y-auto">
           {change.content}
         </pre>
       )}
@@ -102,16 +102,16 @@ function RenameCard({ rename }: { rename: RenameChange }) {
 
   return (
     <div className={`rounded-lg border text-xs overflow-hidden ${
-      status === 'applied' ? 'border-green-600/40 bg-green-950/20' :
-      status === 'error'   ? 'border-red-600/40 bg-red-950/20' :
-                             'border-slate-600/40 bg-slate-900/60'
+      status === 'applied' ? 'border-green-600/40 bg-green-50 dark:bg-green-950/20' :
+      status === 'error'   ? 'border-red-600/40 bg-red-50 dark:bg-red-950/20' :
+                             'border-slate-300 dark:border-neutral-600/40 bg-slate-50 dark:bg-neutral-900/60'
     }`}>
-      <div className="flex items-center justify-between px-3 py-2 bg-slate-800/60">
+      <div className="flex items-center justify-between px-3 py-2 bg-slate-100 dark:bg-neutral-800/60">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-blue-400">↪</span>
-          <span className="font-mono text-slate-400 truncate">{fromName}</span>
-          <span className="text-slate-500">→</span>
-          <span className="font-mono text-slate-200 truncate">{toName}</span>
+          <span className="font-mono text-slate-500 dark:text-neutral-400 truncate">{fromName}</span>
+          <span className="text-slate-400 dark:text-neutral-500">→</span>
+          <span className="font-mono text-slate-700 dark:text-neutral-200 truncate">{toName}</span>
         </div>
         <div className="flex items-center gap-1.5 shrink-0 ml-2">
           {status === 'idle' && (
@@ -122,13 +122,13 @@ function RenameCard({ rename }: { rename: RenameChange }) {
               Renomear
             </button>
           )}
-          {status === 'applying' && <span className="px-2 py-1 text-slate-400">Renomeando...</span>}
-          {status === 'applied' && <span className="px-2 py-1 text-green-400 font-medium">✓ Renomeado</span>}
-          {status === 'error' && <span className="px-2 py-1 text-red-400">✗ Erro</span>}
+          {status === 'applying' && <span className="px-2 py-1 text-slate-500 dark:text-neutral-400">Renomeando...</span>}
+          {status === 'applied' && <span className="px-2 py-1 text-green-600 dark:text-green-400 font-medium">✓ Renomeado</span>}
+          {status === 'error' && <span className="px-2 py-1 text-red-500 dark:text-red-400">✗ Erro</span>}
         </div>
       </div>
       {status === 'error' && errorMsg && (
-        <p className="px-3 py-1.5 text-red-400 text-xs bg-red-950/30">{errorMsg}</p>
+        <p className="px-3 py-1.5 text-red-500 dark:text-red-400 text-xs bg-red-50 dark:bg-red-950/30">{errorMsg}</p>
       )}
     </div>
   );
@@ -153,15 +153,15 @@ function DeleteCard({ del }: { del: DeleteChange }) {
 
   return (
     <div className={`rounded-lg border text-xs overflow-hidden ${
-      status === 'deleted' ? 'border-green-600/40 bg-green-950/20' :
-      status === 'error'   ? 'border-red-600/40 bg-red-950/20' :
-                             'border-slate-600/40 bg-slate-900/60'
+      status === 'deleted' ? 'border-green-600/40 bg-green-50 dark:bg-green-950/20' :
+      status === 'error'   ? 'border-red-600/40 bg-red-50 dark:bg-red-950/20' :
+                             'border-slate-300 dark:border-neutral-600/40 bg-slate-50 dark:bg-neutral-900/60'
     }`}>
-      <div className="flex items-center justify-between px-3 py-2 bg-slate-800/60">
+      <div className="flex items-center justify-between px-3 py-2 bg-slate-100 dark:bg-neutral-800/60">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-red-400">🗑</span>
-          <span className="font-mono text-slate-200 truncate">{fileName}</span>
-          <span className="text-slate-500 truncate text-xs">{del.path}</span>
+          <span className="font-mono text-slate-700 dark:text-neutral-200 truncate">{fileName}</span>
+          <span className="text-slate-400 dark:text-neutral-500 truncate text-xs">{del.path}</span>
         </div>
         <div className="flex items-center gap-1.5 shrink-0 ml-2">
           {status === 'idle' && (
@@ -172,13 +172,13 @@ function DeleteCard({ del }: { del: DeleteChange }) {
               Apagar
             </button>
           )}
-          {status === 'deleting' && <span className="px-2 py-1 text-slate-400">Apagando...</span>}
-          {status === 'deleted'  && <span className="px-2 py-1 text-green-400 font-medium">✓ Apagado</span>}
-          {status === 'error'    && <span className="px-2 py-1 text-red-400">✗ Erro</span>}
+          {status === 'deleting' && <span className="px-2 py-1 text-slate-500 dark:text-neutral-400">Apagando...</span>}
+          {status === 'deleted'  && <span className="px-2 py-1 text-green-600 dark:text-green-400 font-medium">✓ Apagado</span>}
+          {status === 'error'    && <span className="px-2 py-1 text-red-500 dark:text-red-400">✗ Erro</span>}
         </div>
       </div>
       {status === 'error' && errorMsg && (
-        <p className="px-3 py-1.5 text-red-400 text-xs bg-red-950/30">{errorMsg}</p>
+        <p className="px-3 py-1.5 text-red-500 dark:text-red-400 text-xs bg-red-50 dark:bg-red-950/30">{errorMsg}</p>
       )}
     </div>
   );
@@ -201,14 +201,14 @@ function CreateDirCard({ item }: { item: CreateDir }) {
 
   return (
     <div className={`rounded-lg border text-xs overflow-hidden ${
-      status === 'created' ? 'border-green-600/40 bg-green-950/20' :
-      status === 'error'   ? 'border-red-600/40 bg-red-950/20' :
-                             'border-slate-600/40 bg-slate-900/60'
+      status === 'created' ? 'border-green-600/40 bg-green-50 dark:bg-green-950/20' :
+      status === 'error'   ? 'border-red-600/40 bg-red-50 dark:bg-red-950/20' :
+                             'border-slate-300 dark:border-neutral-600/40 bg-slate-50 dark:bg-neutral-900/60'
     }`}>
-      <div className="flex items-center justify-between px-3 py-2 bg-slate-800/60">
+      <div className="flex items-center justify-between px-3 py-2 bg-slate-100 dark:bg-neutral-800/60">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-green-400">📁+</span>
-          <span className="font-mono text-slate-200 truncate">{item.path}</span>
+          <span className="font-mono text-slate-700 dark:text-neutral-200 truncate">{item.path}</span>
         </div>
         <div className="flex items-center gap-1.5 shrink-0 ml-2">
           {status === 'idle' && (
@@ -216,13 +216,13 @@ function CreateDirCard({ item }: { item: CreateDir }) {
               Criar
             </button>
           )}
-          {status === 'creating' && <span className="px-2 py-1 text-slate-400">Criando...</span>}
-          {status === 'created'  && <span className="px-2 py-1 text-green-400 font-medium">✓ Criado</span>}
-          {status === 'error'    && <span className="px-2 py-1 text-red-400">✗ Erro</span>}
+          {status === 'creating' && <span className="px-2 py-1 text-slate-500 dark:text-neutral-400">Criando...</span>}
+          {status === 'created'  && <span className="px-2 py-1 text-green-600 dark:text-green-400 font-medium">✓ Criado</span>}
+          {status === 'error'    && <span className="px-2 py-1 text-red-500 dark:text-red-400">✗ Erro</span>}
         </div>
       </div>
       {status === 'error' && errorMsg && (
-        <p className="px-3 py-1.5 text-red-400 text-xs bg-red-950/30">{errorMsg}</p>
+        <p className="px-3 py-1.5 text-red-500 dark:text-red-400 text-xs bg-red-50 dark:bg-red-950/30">{errorMsg}</p>
       )}
     </div>
   );
@@ -247,15 +247,15 @@ function DeleteDirCard({ item }: { item: DeleteDir }) {
 
   return (
     <div className={`rounded-lg border text-xs overflow-hidden ${
-      status === 'deleted' ? 'border-green-600/40 bg-green-950/20' :
-      status === 'error'   ? 'border-red-600/40 bg-red-950/20' :
-                             'border-slate-600/40 bg-slate-900/60'
+      status === 'deleted' ? 'border-green-600/40 bg-green-50 dark:bg-green-950/20' :
+      status === 'error'   ? 'border-red-600/40 bg-red-50 dark:bg-red-950/20' :
+                             'border-slate-300 dark:border-neutral-600/40 bg-slate-50 dark:bg-neutral-900/60'
     }`}>
-      <div className="flex items-center justify-between px-3 py-2 bg-slate-800/60">
+      <div className="flex items-center justify-between px-3 py-2 bg-slate-100 dark:bg-neutral-800/60">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-red-400">🗑</span>
-          <span className="font-mono text-slate-200 truncate">{dirName}/</span>
-          <span className="text-slate-500 truncate text-xs">{item.path}</span>
+          <span className="font-mono text-slate-700 dark:text-neutral-200 truncate">{dirName}/</span>
+          <span className="text-slate-400 dark:text-neutral-500 truncate text-xs">{item.path}</span>
         </div>
         <div className="flex items-center gap-1.5 shrink-0 ml-2">
           {status === 'idle' && (
@@ -263,13 +263,13 @@ function DeleteDirCard({ item }: { item: DeleteDir }) {
               Apagar pasta
             </button>
           )}
-          {status === 'deleting' && <span className="px-2 py-1 text-slate-400">Apagando...</span>}
-          {status === 'deleted'  && <span className="px-2 py-1 text-green-400 font-medium">✓ Apagado</span>}
-          {status === 'error'    && <span className="px-2 py-1 text-red-400">✗ Erro</span>}
+          {status === 'deleting' && <span className="px-2 py-1 text-slate-500 dark:text-neutral-400">Apagando...</span>}
+          {status === 'deleted'  && <span className="px-2 py-1 text-green-600 dark:text-green-400 font-medium">✓ Apagado</span>}
+          {status === 'error'    && <span className="px-2 py-1 text-red-500 dark:text-red-400">✗ Erro</span>}
         </div>
       </div>
       {status === 'error' && errorMsg && (
-        <p className="px-3 py-1.5 text-red-400 text-xs bg-red-950/30">{errorMsg}</p>
+        <p className="px-3 py-1.5 text-red-500 dark:text-red-400 text-xs bg-red-50 dark:bg-red-950/30">{errorMsg}</p>
       )}
     </div>
   );
@@ -286,23 +286,23 @@ function ListDirCard({ item }: { item: ListDir }) {
   }, [item.path]);
 
   return (
-    <div className="rounded-lg border border-slate-600/40 bg-slate-900/60 text-xs overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/60">
+    <div className="rounded-lg border border-slate-300 dark:border-neutral-600/40 bg-slate-50 dark:bg-neutral-900/60 text-xs overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-neutral-800/60">
         <span className="text-yellow-400">📂</span>
-        <span className="font-mono text-slate-200 truncate">{item.path}</span>
+        <span className="font-mono text-slate-700 dark:text-neutral-200 truncate">{item.path}</span>
       </div>
-      {error && <p className="px-3 py-2 text-red-400">{error}</p>}
-      {!entries && !error && <p className="px-3 py-2 text-slate-400 animate-pulse">Listando...</p>}
+      {error && <p className="px-3 py-2 text-red-500 dark:text-red-400">{error}</p>}
+      {!entries && !error && <p className="px-3 py-2 text-slate-500 dark:text-neutral-400 animate-pulse">Listando...</p>}
       {entries && (
         <ul className="px-3 py-2 space-y-0.5 max-h-48 overflow-y-auto">
           {entries.map((e) => (
-            <li key={e.name} className="flex items-center gap-2 text-slate-300">
+            <li key={e.name} className="flex items-center gap-2 text-slate-600 dark:text-neutral-300">
               <span>{e.type === 'dir' ? '📁' : '📄'}</span>
               <span className="font-mono">{e.name}</span>
-              {e.size !== undefined && <span className="text-slate-500 ml-auto">{(e.size / 1024).toFixed(1)}KB</span>}
+              {e.size !== undefined && <span className="text-slate-400 dark:text-neutral-500 ml-auto">{(e.size / 1024).toFixed(1)}KB</span>}
             </li>
           ))}
-          {entries.length === 0 && <li className="text-slate-500">Diretório vazio</li>}
+          {entries.length === 0 && <li className="text-slate-400 dark:text-neutral-500">Diretório vazio</li>}
         </ul>
       )}
     </div>
@@ -320,23 +320,23 @@ function ListSubdirsCard({ item }: { item: ListSubdirs }) {
   }, [item.path]);
 
   return (
-    <div className="rounded-lg border border-slate-600/40 bg-slate-900/60 text-xs overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/60">
+    <div className="rounded-lg border border-slate-300 dark:border-neutral-600/40 bg-slate-50 dark:bg-neutral-900/60 text-xs overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-neutral-800/60">
         <span className="text-yellow-400">📁</span>
-        <span className="text-slate-400">Subdiretórios de</span>
-        <span className="font-mono text-slate-200 truncate">{item.path}</span>
+        <span className="text-slate-500 dark:text-neutral-400">Subdiretórios de</span>
+        <span className="font-mono text-slate-700 dark:text-neutral-200 truncate">{item.path}</span>
       </div>
-      {error && <p className="px-3 py-2 text-red-400">{error}</p>}
-      {!entries && !error && <p className="px-3 py-2 text-slate-400 animate-pulse">Listando...</p>}
+      {error && <p className="px-3 py-2 text-red-500 dark:text-red-400">{error}</p>}
+      {!entries && !error && <p className="px-3 py-2 text-slate-500 dark:text-neutral-400 animate-pulse">Listando...</p>}
       {entries && (
         <ul className="px-3 py-2 space-y-0.5 max-h-48 overflow-y-auto">
           {entries.map((e) => (
-            <li key={e.name} className="flex items-center gap-2 text-slate-300">
+            <li key={e.name} className="flex items-center gap-2 text-slate-600 dark:text-neutral-300">
               <span>📁</span>
               <span className="font-mono">{e.name}</span>
             </li>
           ))}
-          {entries.length === 0 && <li className="text-slate-500">Nenhum subdiretório encontrado</li>}
+          {entries.length === 0 && <li className="text-slate-400 dark:text-neutral-500">Nenhum subdiretório encontrado</li>}
         </ul>
       )}
     </div>
@@ -351,11 +351,11 @@ function TreeNode({ entry, depth }: { entry: TreeEntry; depth: number }) {
       <li>
         <button
           onClick={() => setCollapsed((v) => !v)}
-          className="flex items-center gap-1 text-slate-300 hover:text-slate-100 w-full text-left"
+          className="flex items-center gap-1 text-slate-600 dark:text-neutral-300 hover:text-slate-900 dark:hover:text-neutral-100 w-full text-left"
           style={{ paddingLeft: indent }}
         >
-          <span className="text-yellow-400 shrink-0">{collapsed ? '▶' : '▼'}</span>
-          <span className="text-yellow-300 shrink-0">📁</span>
+          <span className="text-yellow-500 dark:text-yellow-400 shrink-0">{collapsed ? '▶' : '▼'}</span>
+          <span className="text-yellow-400 dark:text-yellow-300 shrink-0">📁</span>
           <span className="font-mono">{entry.name}</span>
         </button>
         {!collapsed && entry.children && entry.children.length > 0 && (
@@ -369,11 +369,11 @@ function TreeNode({ entry, depth }: { entry: TreeEntry; depth: number }) {
     );
   }
   return (
-    <li className="flex items-center gap-1 text-slate-400" style={{ paddingLeft: indent + 16 }}>
+    <li className="flex items-center gap-1 text-slate-500 dark:text-neutral-400" style={{ paddingLeft: indent + 16 }}>
       <span className="shrink-0">📄</span>
       <span className="font-mono">{entry.name}</span>
       {entry.size !== undefined && (
-        <span className="text-slate-600 ml-auto shrink-0">{(entry.size / 1024).toFixed(1)}KB</span>
+        <span className="text-slate-400 dark:text-neutral-600 ml-auto shrink-0">{(entry.size / 1024).toFixed(1)}KB</span>
       )}
     </li>
   );
@@ -390,20 +390,20 @@ function ListTreeCard({ item }: { item: ListTree }) {
   }, [item.path]);
 
   return (
-    <div className="rounded-lg border border-slate-600/40 bg-slate-900/60 text-xs overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/60">
+    <div className="rounded-lg border border-slate-300 dark:border-neutral-600/40 bg-slate-50 dark:bg-neutral-900/60 text-xs overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-neutral-800/60">
         <span className="text-yellow-400">🌳</span>
-        <span className="text-slate-400">Árvore de</span>
-        <span className="font-mono text-slate-200 truncate">{item.path}</span>
+        <span className="text-slate-500 dark:text-neutral-400">Árvore de</span>
+        <span className="font-mono text-slate-700 dark:text-neutral-200 truncate">{item.path}</span>
       </div>
-      {error && <p className="px-3 py-2 text-red-400">{error}</p>}
-      {!tree && !error && <p className="px-3 py-2 text-slate-400 animate-pulse">Carregando...</p>}
+      {error && <p className="px-3 py-2 text-red-500 dark:text-red-400">{error}</p>}
+      {!tree && !error && <p className="px-3 py-2 text-slate-500 dark:text-neutral-400 animate-pulse">Carregando...</p>}
       {tree && (
         <ul className="px-2 py-2 space-y-0.5 max-h-64 overflow-y-auto">
           {tree.map((entry, i) => (
             <TreeNode key={i} entry={entry} depth={0} />
           ))}
-          {tree.length === 0 && <li className="text-slate-500 px-3">Diretório vazio</li>}
+          {tree.length === 0 && <li className="text-slate-400 dark:text-neutral-500 px-3">Diretório vazio</li>}
         </ul>
       )}
     </div>
@@ -421,24 +421,24 @@ function SearchFilesCard({ item }: { item: SearchFiles }) {
   }, [item.path, item.query]);
 
   return (
-    <div className="rounded-lg border border-slate-600/40 bg-slate-900/60 text-xs overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/60">
+    <div className="rounded-lg border border-slate-300 dark:border-neutral-600/40 bg-slate-50 dark:bg-neutral-900/60 text-xs overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-neutral-800/60">
         <span className="text-blue-400">🔍</span>
-        <span className="text-slate-400">Busca:</span>
-        <span className="font-mono text-slate-200">"{item.query}"</span>
-        <span className="text-slate-500">em {item.path}</span>
+        <span className="text-slate-500 dark:text-neutral-400">Busca:</span>
+        <span className="font-mono text-slate-700 dark:text-neutral-200">"{item.query}"</span>
+        <span className="text-slate-400 dark:text-neutral-500">em {item.path}</span>
       </div>
-      {error && <p className="px-3 py-2 text-red-400">{error}</p>}
-      {!results && !error && <p className="px-3 py-2 text-slate-400 animate-pulse">Buscando...</p>}
+      {error && <p className="px-3 py-2 text-red-500 dark:text-red-400">{error}</p>}
+      {!results && !error && <p className="px-3 py-2 text-slate-500 dark:text-neutral-400 animate-pulse">Buscando...</p>}
       {results && (
         <ul className="px-3 py-2 space-y-0.5 max-h-48 overflow-y-auto">
           {results.map((r, i) => (
-            <li key={i} className="flex items-center gap-2 text-slate-300">
+            <li key={i} className="flex items-center gap-2 text-slate-600 dark:text-neutral-300">
               <span>{r.type === 'dir' ? '📁' : '📄'}</span>
               <span className="font-mono truncate">{r.path}</span>
             </li>
           ))}
-          {results.length === 0 && <li className="text-slate-500">Nenhum resultado encontrado</li>}
+          {results.length === 0 && <li className="text-slate-400 dark:text-neutral-500">Nenhum resultado encontrado</li>}
         </ul>
       )}
     </div>
@@ -471,16 +471,16 @@ function CommandCard({ cmd }: { cmd: CommandSuggestion }) {
 
   return (
     <div className={`rounded-lg border text-xs overflow-hidden ${
-      status === 'done'  ? 'border-green-600/40 bg-green-950/20' :
-      status === 'error' ? 'border-red-600/40 bg-red-950/20' :
-                           'border-slate-600/40 bg-slate-900/60'
+      status === 'done'  ? 'border-green-600/40 bg-green-50 dark:bg-green-950/20' :
+      status === 'error' ? 'border-red-600/40 bg-red-50 dark:bg-red-950/20' :
+                           'border-slate-300 dark:border-neutral-600/40 bg-slate-50 dark:bg-neutral-900/60'
     }`}>
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 bg-slate-800/60">
+      <div className="flex items-center justify-between px-3 py-2 bg-slate-100 dark:bg-neutral-800/60">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-green-500">$</span>
-          <code className="font-mono text-slate-200 truncate">{cmd.command}</code>
-          {cmd.cwd && <span className="text-slate-500 shrink-0 truncate max-w-[120px]" title={cmd.cwd}>{cmd.cwd}</span>}
+          <code className="font-mono text-slate-700 dark:text-neutral-200 truncate">{cmd.command}</code>
+          {cmd.cwd && <span className="text-slate-400 dark:text-neutral-500 shrink-0 truncate max-w-[120px]" title={cmd.cwd}>{cmd.cwd}</span>}
         </div>
         <div className="flex items-center gap-1.5 shrink-0 ml-2">
           {status === 'idle' && (
@@ -491,19 +491,19 @@ function CommandCard({ cmd }: { cmd: CommandSuggestion }) {
               Executar
             </button>
           )}
-          {status === 'running' && <span className="px-2 py-1 text-slate-400 animate-pulse">Rodando...</span>}
-          {status === 'done'  && <span className="px-2 py-1 text-green-400 font-medium">✓ Concluído ({exitCode})</span>}
-          {status === 'error' && <span className="px-2 py-1 text-red-400">✗ Erro ({exitCode})</span>}
+          {status === 'running' && <span className="px-2 py-1 text-slate-500 dark:text-neutral-400 animate-pulse">Rodando...</span>}
+          {status === 'done'  && <span className="px-2 py-1 text-green-600 dark:text-green-400 font-medium">✓ Concluído ({exitCode})</span>}
+          {status === 'error' && <span className="px-2 py-1 text-red-500 dark:text-red-400">✗ Erro ({exitCode})</span>}
         </div>
       </div>
 
       {cmd.description && (
-        <p className="px-3 py-1 text-slate-500 border-b border-slate-700/50">{cmd.description}</p>
+        <p className="px-3 py-1 text-slate-400 dark:text-neutral-500 border-b border-slate-200 dark:border-neutral-700/50">{cmd.description}</p>
       )}
 
       {/* Output */}
       {output && (
-        <pre className="px-3 py-3 font-mono text-xs leading-relaxed max-h-64 overflow-y-auto whitespace-pre-wrap text-slate-300">
+        <pre className="px-3 py-3 font-mono text-xs leading-relaxed max-h-64 overflow-y-auto whitespace-pre-wrap text-slate-600 dark:text-neutral-300">
           {output}
         </pre>
       )}
@@ -527,13 +527,13 @@ export function Message({ message }: MessageProps) {
           className={`rounded-2xl px-4 py-3 text-sm ${
             isUser
               ? 'bg-blue-600 text-white rounded-tr-sm'
-              : 'bg-slate-800 text-slate-100 rounded-tl-sm'
+              : 'bg-slate-100 dark:bg-neutral-800 text-slate-800 dark:text-neutral-100 rounded-tl-sm'
           }`}
         >
           {isUser ? (
             <p className="whitespace-pre-wrap">{message.content}</p>
           ) : (
-            <div className="prose prose-sm prose-invert max-w-none">
+            <div className="prose prose-sm prose-slate dark:prose-invert max-w-none">
               <ReactMarkdown
                 components={{
                   code({ className, children, ...props }) {
@@ -541,15 +541,15 @@ export function Message({ message }: MessageProps) {
                     const isBlock = match || String(children).includes('\n');
                     if (isBlock) {
                       return (
-                        <pre className="bg-slate-900 rounded-lg p-3 overflow-x-auto my-2">
-                          <code className={`text-slate-300 text-xs font-mono ${className || ''}`} {...props}>
+                        <pre className="bg-slate-200 dark:bg-neutral-900 rounded-lg p-3 overflow-x-auto my-2">
+                          <code className={`text-slate-700 dark:text-neutral-300 text-xs font-mono ${className || ''}`} {...props}>
                             {children}
                           </code>
                         </pre>
                       );
                     }
                     return (
-                      <code className="bg-slate-900 text-blue-300 px-1 py-0.5 rounded text-xs font-mono" {...props}>
+                      <code className="bg-slate-200 dark:bg-neutral-900 text-blue-600 dark:text-blue-300 px-1 py-0.5 rounded text-xs font-mono" {...props}>
                         {children}
                       </code>
                     );
@@ -568,7 +568,7 @@ export function Message({ message }: MessageProps) {
         {/* File changes */}
         {message.fileChanges && message.fileChanges.length > 0 && (
           <div className="mt-2 space-y-1.5">
-            <p className="text-xs text-slate-500 px-1">
+            <p className="text-xs text-slate-400 dark:text-neutral-500 px-1">
               {message.fileChanges.length === 1
                 ? '1 arquivo para aplicar:'
                 : `${message.fileChanges.length} arquivos para aplicar:`}
@@ -582,7 +582,7 @@ export function Message({ message }: MessageProps) {
         {/* Renames */}
         {message.renames && message.renames.length > 0 && (
           <div className="mt-2 space-y-1.5">
-            <p className="text-xs text-slate-500 px-1">
+            <p className="text-xs text-slate-400 dark:text-neutral-500 px-1">
               {message.renames.length === 1 ? '1 arquivo para renomear:' : `${message.renames.length} arquivos para renomear:`}
             </p>
             {message.renames.map((rename, i) => (
@@ -594,7 +594,7 @@ export function Message({ message }: MessageProps) {
         {/* Deletes */}
         {message.deletes && message.deletes.length > 0 && (
           <div className="mt-2 space-y-1.5">
-            <p className="text-xs text-slate-500 px-1">
+            <p className="text-xs text-slate-400 dark:text-neutral-500 px-1">
               {message.deletes.length === 1 ? '1 arquivo para apagar:' : `${message.deletes.length} arquivos para apagar:`}
             </p>
             {message.deletes.map((del, i) => (
@@ -606,7 +606,7 @@ export function Message({ message }: MessageProps) {
         {/* Create dirs */}
         {message.createDirs && message.createDirs.length > 0 && (
           <div className="mt-2 space-y-1.5">
-            <p className="text-xs text-slate-500 px-1">
+            <p className="text-xs text-slate-400 dark:text-neutral-500 px-1">
               {message.createDirs.length === 1 ? '1 diretório para criar:' : `${message.createDirs.length} diretórios para criar:`}
             </p>
             {message.createDirs.map((item, i) => <CreateDirCard key={i} item={item} />)}
@@ -616,7 +616,7 @@ export function Message({ message }: MessageProps) {
         {/* Delete dirs */}
         {message.deleteDirs && message.deleteDirs.length > 0 && (
           <div className="mt-2 space-y-1.5">
-            <p className="text-xs text-slate-500 px-1">
+            <p className="text-xs text-slate-400 dark:text-neutral-500 px-1">
               {message.deleteDirs.length === 1 ? '1 diretório para apagar:' : `${message.deleteDirs.length} diretórios para apagar:`}
             </p>
             {message.deleteDirs.map((item, i) => <DeleteDirCard key={i} item={item} />)}
@@ -654,7 +654,7 @@ export function Message({ message }: MessageProps) {
         {/* Commands */}
         {message.commands && message.commands.length > 0 && (
           <div className="mt-2 space-y-1.5">
-            <p className="text-xs text-slate-500 px-1">
+            <p className="text-xs text-slate-400 dark:text-neutral-500 px-1">
               {message.commands.length === 1 ? '1 comando sugerido:' : `${message.commands.length} comandos sugeridos:`}
             </p>
             {message.commands.map((cmd, i) => (
@@ -669,7 +669,7 @@ export function Message({ message }: MessageProps) {
             {message.sources.slice(0, 3).map((s, i) => (
               <span
                 key={i}
-                className="text-xs px-2 py-0.5 bg-slate-800 text-slate-400 rounded-full border border-slate-700"
+                className="text-xs px-2 py-0.5 bg-slate-100 dark:bg-neutral-800 text-slate-500 dark:text-neutral-400 rounded-full border border-slate-300 dark:border-neutral-700"
                 title={`${s.repo}/${s.filePath}`}
               >
                 {s.language} · {Math.round(s.score * 100)}%
@@ -680,14 +680,14 @@ export function Message({ message }: MessageProps) {
 
         {/* Model indicator */}
         {message.model && (
-          <div className="mt-1 text-xs text-slate-500">
+          <div className="mt-1 text-xs text-slate-400 dark:text-neutral-500">
             via {message.model === 'claude' ? 'Claude API' : 'Ollama local'}
           </div>
         )}
       </div>
 
       {isUser && (
-        <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white flex-shrink-0 mt-1">
+        <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-neutral-700 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-white flex-shrink-0 mt-1">
           U
         </div>
       )}

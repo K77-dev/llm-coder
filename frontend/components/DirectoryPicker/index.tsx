@@ -45,29 +45,29 @@ export function DirectoryPicker({ onSelect, onClose }: DirectoryPickerProps) {
     : [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-[520px] max-h-[80vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/60 backdrop-blur-sm">
+      <div className="bg-white dark:bg-neutral-900 border border-slate-300 dark:border-neutral-700 rounded-xl shadow-2xl w-[520px] max-h-[80vh] flex flex-col">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
-          <h2 className="text-sm font-semibold text-white">Selecionar diretório</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-white text-lg leading-none">✕</button>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-neutral-800">
+          <h2 className="text-sm font-semibold text-slate-900 dark:text-white">Selecionar diretório</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-900 dark:hover:text-white text-lg leading-none">✕</button>
         </div>
 
         {/* Breadcrumb */}
-        <div className="flex items-center gap-1 px-5 py-2 border-b border-slate-800 overflow-x-auto">
+        <div className="flex items-center gap-1 px-5 py-2 border-b border-slate-200 dark:border-neutral-800 overflow-x-auto">
           <button
             onClick={() => navigate('/')}
-            className="text-xs text-slate-400 hover:text-white shrink-0"
+            className="text-xs text-slate-500 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white shrink-0"
           >
             /
           </button>
           {segments.map((seg, i) => (
             <span key={seg.path} className="flex items-center gap-1 shrink-0">
-              <span className="text-slate-600 text-xs">/</span>
+              <span className="text-slate-300 dark:text-neutral-600 text-xs">/</span>
               <button
                 onClick={() => navigate(seg.path)}
-                className={`text-xs hover:text-white ${i === segments.length - 1 ? 'text-blue-400 font-medium' : 'text-slate-400'}`}
+                className={`text-xs hover:text-slate-900 dark:hover:text-white ${i === segments.length - 1 ? 'text-blue-500 dark:text-blue-400 font-medium' : 'text-slate-500 dark:text-neutral-400'}`}
               >
                 {seg.label}
               </button>
@@ -78,34 +78,34 @@ export function DirectoryPicker({ onSelect, onClose }: DirectoryPickerProps) {
         {/* Directory list */}
         <div className="flex-1 overflow-y-auto px-3 py-2">
           {loading && (
-            <p className="text-xs text-slate-500 px-2 py-3">Carregando...</p>
+            <p className="text-xs text-slate-400 dark:text-neutral-500 px-2 py-3">Carregando...</p>
           )}
           {error && (
-            <p className="text-xs text-red-400 px-2 py-3">{error}</p>
+            <p className="text-xs text-red-500 dark:text-red-400 px-2 py-3">{error}</p>
           )}
           {!loading && !error && result && (
             <>
               {result.parent && (
                 <button
                   onClick={() => navigate(result.parent!)}
-                  className="flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+                  className="flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-neutral-800 text-slate-500 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white transition-colors"
                 >
                   <span className="text-base">↑</span>
                   <span className="text-xs">..</span>
                 </button>
               )}
               {result.entries.length === 0 && (
-                <p className="text-xs text-slate-500 px-3 py-2">Diretório vazio</p>
+                <p className="text-xs text-slate-400 dark:text-neutral-500 px-3 py-2">Diretório vazio</p>
               )}
               {result.entries.map((entry) => (
                 <button
                   key={entry.path}
                   onClick={() => navigate(entry.path)}
-                  className="flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group"
+                  className="flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-neutral-800 text-slate-600 dark:text-neutral-300 hover:text-slate-900 dark:hover:text-white transition-colors group"
                 >
                   <span className="text-yellow-500 text-sm">📁</span>
                   <span className="text-xs flex-1">{entry.name}</span>
-                  <span className="text-xs text-slate-600 group-hover:text-slate-400">›</span>
+                  <span className="text-xs text-slate-300 dark:text-neutral-600 group-hover:text-slate-500 dark:group-hover:text-neutral-400">›</span>
                 </button>
               ))}
             </>
@@ -113,15 +113,15 @@ export function DirectoryPicker({ onSelect, onClose }: DirectoryPickerProps) {
         </div>
 
         {/* Current path + actions */}
-        <div className="border-t border-slate-800 px-5 py-4 space-y-3">
-          <p className="text-xs text-slate-400 truncate">
-            <span className="text-slate-600">Selecionado: </span>
-            <span className="text-slate-200">{result?.path ?? '—'}</span>
+        <div className="border-t border-slate-200 dark:border-neutral-800 px-5 py-4 space-y-3">
+          <p className="text-xs text-slate-500 dark:text-neutral-400 truncate">
+            <span className="text-slate-400 dark:text-neutral-600">Selecionado: </span>
+            <span className="text-slate-700 dark:text-neutral-200">{result?.path ?? '—'}</span>
           </p>
           <div className="flex gap-2">
             <button
               onClick={onClose}
-              className="flex-1 text-xs py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+              className="flex-1 text-xs py-2 rounded-lg bg-slate-100 dark:bg-neutral-800 hover:bg-slate-200 dark:hover:bg-neutral-700 text-slate-600 dark:text-neutral-300 transition-colors"
             >
               Cancelar
             </button>
