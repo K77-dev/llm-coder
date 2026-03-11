@@ -24,17 +24,20 @@ export async function generateResponse(
 
   logger.debug({ model, promptLength: prompt.length }, 'Generating response with Ollama');
 
-  const response = await ollama.generate({
+  const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [];
+  if (options.system) messages.push({ role: 'system', content: options.system });
+  messages.push({ role: 'user', content: prompt });
+
+  const response = await ollama.chat({
     model,
-    prompt,
-    system: options.system,
+    messages,
     options: {
       temperature: options.temperature ?? 0.1,
       num_predict: options.maxTokens ?? 2048,
     },
   });
 
-  return response.response;
+  return response.message.content;
 }
 
 export async function* streamResponse(
@@ -43,10 +46,13 @@ export async function* streamResponse(
 ): AsyncGenerator<string> {
   const model = options.model || DEFAULT_MODEL;
 
-  const stream = await ollama.generate({
+  const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [];
+  if (options.system) messages.push({ role: 'system', content: options.system });
+  messages.push({ role: 'user', content: prompt });
+
+  const stream = await ollama.chat({
     model,
-    prompt,
-    system: options.system,
+    messages,
     stream: true,
     options: {
       temperature: options.temperature ?? 0.1,
@@ -55,7 +61,7 @@ export async function* streamResponse(
   });
 
   for await (const chunk of stream) {
-    if (chunk.response) yield chunk.response;
+    if (chunk.message?.content) yield chunk.message.content;
   }
 }
 

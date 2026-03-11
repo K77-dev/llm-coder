@@ -18,6 +18,7 @@ export interface ChatRequest {
   history?: ChatMessage[];
   filter?: { repo?: string; language?: string };
   stream?: boolean;
+  projectDir?: string;
 }
 
 export interface ChatSource {
@@ -27,11 +28,59 @@ export interface ChatSource {
   score: number;
 }
 
+export interface FileChange {
+  path: string;
+  content: string;
+}
+
+export interface CommandSuggestion {
+  command: string;
+  cwd?: string;
+  description?: string;
+}
+
 export interface ChatResponse {
   response: string;
   codeBlocks: Array<{ language: string; code: string }>;
+  fileChanges: FileChange[];
+  commands: CommandSuggestion[];
   model: 'local' | 'claude';
   sources: ChatSource[];
+}
+
+export async function execCommand(
+  command: string,
+  cwd?: string,
+  onChunk?: (type: string, data: string) => void
+): Promise<number> {
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  const response = await fetch(`${API_BASE}/api/exec`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ command, cwd }),
+  });
+
+  if (!response.body) throw new Error('No response body');
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let exitCode = 0;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const lines = decoder.decode(value).split('\n');
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      const payload = line.slice(6);
+      if (payload === '[DONE]') return exitCode;
+      try {
+        const { type, data } = JSON.parse(payload);
+        if (type === 'exit') exitCode = Number(data);
+        onChunk?.(type, data);
+      } catch { /* skip */ }
+    }
+  }
+  return exitCode;
 }
 
 export async function sendChat(request: ChatRequest): Promise<ChatResponse> {
@@ -98,5 +147,15 @@ export async function getIndexStatus(): Promise<{ isIndexing: boolean }> {
 export async function clearIndex(repo?: string): Promise<{ status: string; removed?: number; message?: string }> {
   const url = repo ? `/index/${encodeURIComponent(repo)}` : '/index';
   const { data } = await api.delete(url);
+  return data;
+}
+
+export async function writeFile(filePath: string, content: string): Promise<{ status: string; path: string }> {
+  const { data } = await api.post('/files/write', { path: filePath, content });
+  return data;
+}
+
+export async function readFile(filePath: string): Promise<{ path: string; content: string }> {
+  const { data } = await api.get('/files/read', { params: { path: filePath } });
   return data;
 }

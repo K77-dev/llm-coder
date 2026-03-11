@@ -7,7 +7,7 @@ import { Message } from './Message';
 export function ChatInterface() {
   const { messages, isLoading, error, sendMessage, clearMessages } = useChat();
   const [input, setInput] = useState('');
-  const [useStream, setUseStream] = useState(true);
+  const [useStream, setUseStream] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 

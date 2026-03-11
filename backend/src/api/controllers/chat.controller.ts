@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { searchSimilar, formatContextFromResults } from '../../rag/searcher';
 import { generateResponse, streamResponse, isAvailable } from '../../llm/ollama-client';
 import { generateWithClaude, streamWithClaude, shouldUseClaude, isConfigured } from '../../llm/claude-client';
-import { buildChatPrompt, SYSTEM_PROMPT_CODE } from '../../llm/prompt-templates';
+import { buildChatPrompt, buildSystemPrompt } from '../../llm/prompt-templates';
 import { parseResponse, estimateTokenCount } from '../../llm/response-parser';
 import { AppError } from '../middleware/error';
 import { logger } from '../../utils/logger';
@@ -20,12 +20,13 @@ const chatSchema = z.object({
     language: z.string().optional(),
   }).optional(),
   stream: z.boolean().optional().default(false),
+  projectDir: z.string().optional(),
 });
 
 export async function chat(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const body = chatSchema.parse(req.body);
-    const { message, model, history, filter, stream } = body;
+    const { message, model, history, filter, stream, projectDir } = body;
 
     // RAG: Search for relevant code context
     const searchResults = await searchSimilar(message, 5, filter).catch(() => []);
@@ -34,6 +35,7 @@ export async function chat(req: Request, res: Response, next: NextFunction): Pro
       : undefined;
 
     const prompt = buildChatPrompt(message, history, ragContext);
+    const systemPrompt = buildSystemPrompt(projectDir);
     const tokenCount = estimateTokenCount(prompt);
 
     const useClaudeApi =
@@ -58,8 +60,8 @@ export async function chat(req: Request, res: Response, next: NextFunction): Pro
       res.setHeader('Connection', 'keep-alive');
 
       const generator = useClaudeApi
-        ? streamWithClaude(prompt, { system: SYSTEM_PROMPT_CODE })
-        : streamResponse(prompt, { system: SYSTEM_PROMPT_CODE });
+        ? streamWithClaude(prompt, { system: systemPrompt })
+        : streamResponse(prompt, { system: systemPrompt });
 
       for await (const chunk of generator) {
         res.write(`data: ${JSON.stringify({ text: chunk })}\n\n`);
@@ -70,14 +72,16 @@ export async function chat(req: Request, res: Response, next: NextFunction): Pro
     }
 
     const raw = useClaudeApi
-      ? await generateWithClaude(prompt, { system: SYSTEM_PROMPT_CODE })
-      : await generateResponse(prompt, { system: SYSTEM_PROMPT_CODE });
+      ? await generateWithClaude(prompt, { system: systemPrompt })
+      : await generateResponse(prompt, { system: systemPrompt });
 
     const parsed = parseResponse(raw);
 
     res.json({
       response: parsed.text,
       codeBlocks: parsed.codeBlocks,
+      fileChanges: parsed.fileChanges,
+      commands: parsed.commands,
       model: useClaudeApi ? 'claude' : 'local',
       sources: searchResults.map((r) => ({
         repo: r.repo,

@@ -19,7 +19,6 @@ export function Sidebar() {
   const [indexing, setIndexing] = useState(false);
   const [indexMsg, setIndexMsg] = useState('');
   const [indexError, setIndexError] = useState('');
-  const [clearing, setClearing] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const loadHealth = useCallback(() => {
@@ -47,28 +46,16 @@ export function Sidebar() {
     return () => clearInterval(poll);
   }, [indexing, loadHealth]);
 
-  const handleClear = async () => {
-    setClearing(true);
+  const handleSelectDirectory = async (path: string) => {
+    setDirPath(path);
+    localStorage.setItem('projectDir', path);
+    setPickerOpen(false);
     setIndexMsg('');
     setIndexError('');
-    try {
-      const res = await clearIndex();
-      setIndexMsg(res.message || 'Índice limpo!');
-      loadHealth();
-    } catch {
-      setIndexError('Erro ao limpar índice');
-    } finally {
-      setClearing(false);
-    }
-  };
-
-  const handleIndex = async () => {
-    if (!dirPath.trim()) return;
-    setIndexError('');
-    setIndexMsg('');
     setIndexing(true);
     try {
-      const res = await indexDirectory(dirPath.trim(), dirName.trim() || undefined);
+      await clearIndex();
+      const res = await indexDirectory(path, dirName.trim() || undefined);
       setIndexMsg(res.message);
     } catch (err: unknown) {
       setIndexing(false);
@@ -132,29 +119,20 @@ export function Sidebar() {
               placeholder="Nome (opcional)"
               className="w-full text-xs bg-slate-800 text-slate-200 placeholder-slate-500 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
-            <button
-              onClick={handleIndex}
-              disabled={indexing || !dirPath.trim()}
-              className="w-full text-xs py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium transition-colors"
-            >
-              {indexing ? 'Indexando...' : 'Indexar'}
-            </button>
+            {indexing && (
+              <p className="text-xs text-blue-400">Indexando...</p>
+            )}
             {indexMsg && (
-              <p className="text-xs text-green-400 mt-1">{indexMsg}</p>
+              <p className="text-xs text-green-400">{indexMsg}</p>
             )}
             {indexError && (
-              <p className="text-xs text-red-400 mt-1">{indexError}</p>
+              <p className="text-xs text-red-400">{indexError}</p>
             )}
-            <button
-              onClick={handleClear}
-              disabled={clearing || indexing}
-              className="w-full text-xs py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-300 transition-colors"
-            >
-              {clearing ? 'Limpando...' : 'Limpar índice'}
-            </button>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              Após indexar, as respostas usarão o código do projeto como contexto.
-            </p>
+            {!dirPath && !indexing && (
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Selecione uma pasta para indexar o projeto.
+              </p>
+            )}
           </div>
         </div>
 
@@ -201,10 +179,7 @@ export function Sidebar() {
 
       {pickerOpen && (
         <DirectoryPicker
-          onSelect={(path) => {
-            setDirPath(path);
-            setPickerOpen(false);
-          }}
+          onSelect={handleSelectDirectory}
           onClose={() => setPickerOpen(false)}
         />
       )}

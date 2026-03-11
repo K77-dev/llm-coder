@@ -1,11 +1,13 @@
 import { useState, useCallback, useRef } from 'react';
-import { sendChat, streamChat, ChatMessage, ChatSource } from '../api';
+import { sendChat, streamChat, ChatMessage, ChatSource, FileChange, CommandSuggestion } from '../api';
 
 export interface Message extends ChatMessage {
   id: string;
   sources?: ChatSource[];
   model?: 'local' | 'claude';
   isStreaming?: boolean;
+  fileChanges?: FileChange[];
+  commands?: CommandSuggestion[];
 }
 
 export function useChat() {
@@ -38,6 +40,8 @@ export function useChat() {
     }));
 
     try {
+      const projectDir = localStorage.getItem('projectDir') || undefined;
+
       if (options?.useStream) {
         const assistantId = crypto.randomUUID();
         setMessages((prev) => [
@@ -51,6 +55,7 @@ export function useChat() {
           history,
           model: options?.model || 'auto',
           stream: true,
+          projectDir,
         })) {
           if (abortRef.current) break;
           fullContent += chunk;
@@ -71,6 +76,7 @@ export function useChat() {
           message: content,
           history,
           model: options?.model || 'auto',
+          projectDir,
         });
 
         setMessages((prev) => [
@@ -81,6 +87,8 @@ export function useChat() {
             content: response.response,
             sources: response.sources,
             model: response.model,
+            fileChanges: response.fileChanges?.length ? response.fileChanges : undefined,
+            commands: response.commands?.length ? response.commands : undefined,
           },
         ]);
       }
