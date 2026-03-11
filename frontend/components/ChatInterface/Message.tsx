@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Message as MessageType } from '../../lib/hooks/useChat';
-import { writeFile, FileChange, CommandSuggestion, execCommand } from '../../lib/api';
+import { writeFile, renameFile, deleteFile, createDir, deleteDir, listDir, listSubdirs as listSubdirsApi, searchFiles as searchFilesApi, listTree as listTreeApi, FileChange, RenameChange, DeleteChange, CreateDir, DeleteDir, ListDir, ListSubdirs, ListTree, SearchFiles, DirEntry, TreeEntry, SearchResult, CommandSuggestion, execCommand } from '../../lib/api';
 
 interface MessageProps {
   message: MessageType;
@@ -77,6 +77,369 @@ function FileChangeCard({ change }: { change: FileChange }) {
         <pre className="px-3 py-3 overflow-x-auto text-slate-300 font-mono text-xs leading-relaxed max-h-80 overflow-y-auto">
           {change.content}
         </pre>
+      )}
+    </div>
+  );
+}
+
+function RenameCard({ rename }: { rename: RenameChange }) {
+  const [status, setStatus] = useState<'idle' | 'applying' | 'applied' | 'error'>('idle');
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const apply = async () => {
+    setStatus('applying');
+    try {
+      await renameFile(rename.from, rename.to);
+      setStatus('applied');
+    } catch {
+      setStatus('error');
+      setErrorMsg('Falha ao renomear. Verifique se o arquivo existe e é acessível.');
+    }
+  };
+
+  const fromName = rename.from.split('/').pop();
+  const toName = rename.to.split('/').pop();
+
+  return (
+    <div className={`rounded-lg border text-xs overflow-hidden ${
+      status === 'applied' ? 'border-green-600/40 bg-green-950/20' :
+      status === 'error'   ? 'border-red-600/40 bg-red-950/20' :
+                             'border-slate-600/40 bg-slate-900/60'
+    }`}>
+      <div className="flex items-center justify-between px-3 py-2 bg-slate-800/60">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-blue-400">↪</span>
+          <span className="font-mono text-slate-400 truncate">{fromName}</span>
+          <span className="text-slate-500">→</span>
+          <span className="font-mono text-slate-200 truncate">{toName}</span>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0 ml-2">
+          {status === 'idle' && (
+            <button
+              onClick={apply}
+              className="px-2 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white font-medium transition-colors"
+            >
+              Renomear
+            </button>
+          )}
+          {status === 'applying' && <span className="px-2 py-1 text-slate-400">Renomeando...</span>}
+          {status === 'applied' && <span className="px-2 py-1 text-green-400 font-medium">✓ Renomeado</span>}
+          {status === 'error' && <span className="px-2 py-1 text-red-400">✗ Erro</span>}
+        </div>
+      </div>
+      {status === 'error' && errorMsg && (
+        <p className="px-3 py-1.5 text-red-400 text-xs bg-red-950/30">{errorMsg}</p>
+      )}
+    </div>
+  );
+}
+
+function DeleteCard({ del }: { del: DeleteChange }) {
+  const [status, setStatus] = useState<'idle' | 'deleting' | 'deleted' | 'error'>('idle');
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const apply = async () => {
+    setStatus('deleting');
+    try {
+      await deleteFile(del.path);
+      setStatus('deleted');
+    } catch {
+      setStatus('error');
+      setErrorMsg('Falha ao apagar. Verifique se o arquivo existe e é acessível.');
+    }
+  };
+
+  const fileName = del.path.split('/').pop();
+
+  return (
+    <div className={`rounded-lg border text-xs overflow-hidden ${
+      status === 'deleted' ? 'border-green-600/40 bg-green-950/20' :
+      status === 'error'   ? 'border-red-600/40 bg-red-950/20' :
+                             'border-slate-600/40 bg-slate-900/60'
+    }`}>
+      <div className="flex items-center justify-between px-3 py-2 bg-slate-800/60">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-red-400">🗑</span>
+          <span className="font-mono text-slate-200 truncate">{fileName}</span>
+          <span className="text-slate-500 truncate text-xs">{del.path}</span>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0 ml-2">
+          {status === 'idle' && (
+            <button
+              onClick={apply}
+              className="px-2 py-1 rounded bg-red-700 hover:bg-red-600 text-white font-medium transition-colors"
+            >
+              Apagar
+            </button>
+          )}
+          {status === 'deleting' && <span className="px-2 py-1 text-slate-400">Apagando...</span>}
+          {status === 'deleted'  && <span className="px-2 py-1 text-green-400 font-medium">✓ Apagado</span>}
+          {status === 'error'    && <span className="px-2 py-1 text-red-400">✗ Erro</span>}
+        </div>
+      </div>
+      {status === 'error' && errorMsg && (
+        <p className="px-3 py-1.5 text-red-400 text-xs bg-red-950/30">{errorMsg}</p>
+      )}
+    </div>
+  );
+}
+
+function CreateDirCard({ item }: { item: CreateDir }) {
+  const [status, setStatus] = useState<'idle' | 'creating' | 'created' | 'error'>('idle');
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const apply = async () => {
+    setStatus('creating');
+    try {
+      await createDir(item.path);
+      setStatus('created');
+    } catch {
+      setStatus('error');
+      setErrorMsg('Falha ao criar diretório.');
+    }
+  };
+
+  return (
+    <div className={`rounded-lg border text-xs overflow-hidden ${
+      status === 'created' ? 'border-green-600/40 bg-green-950/20' :
+      status === 'error'   ? 'border-red-600/40 bg-red-950/20' :
+                             'border-slate-600/40 bg-slate-900/60'
+    }`}>
+      <div className="flex items-center justify-between px-3 py-2 bg-slate-800/60">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-green-400">📁+</span>
+          <span className="font-mono text-slate-200 truncate">{item.path}</span>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0 ml-2">
+          {status === 'idle' && (
+            <button onClick={apply} className="px-2 py-1 rounded bg-green-700 hover:bg-green-600 text-white font-medium transition-colors">
+              Criar
+            </button>
+          )}
+          {status === 'creating' && <span className="px-2 py-1 text-slate-400">Criando...</span>}
+          {status === 'created'  && <span className="px-2 py-1 text-green-400 font-medium">✓ Criado</span>}
+          {status === 'error'    && <span className="px-2 py-1 text-red-400">✗ Erro</span>}
+        </div>
+      </div>
+      {status === 'error' && errorMsg && (
+        <p className="px-3 py-1.5 text-red-400 text-xs bg-red-950/30">{errorMsg}</p>
+      )}
+    </div>
+  );
+}
+
+function DeleteDirCard({ item }: { item: DeleteDir }) {
+  const [status, setStatus] = useState<'idle' | 'deleting' | 'deleted' | 'error'>('idle');
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const apply = async () => {
+    setStatus('deleting');
+    try {
+      await deleteDir(item.path);
+      setStatus('deleted');
+    } catch {
+      setStatus('error');
+      setErrorMsg('Falha ao apagar diretório.');
+    }
+  };
+
+  const dirName = item.path.split('/').filter(Boolean).pop();
+
+  return (
+    <div className={`rounded-lg border text-xs overflow-hidden ${
+      status === 'deleted' ? 'border-green-600/40 bg-green-950/20' :
+      status === 'error'   ? 'border-red-600/40 bg-red-950/20' :
+                             'border-slate-600/40 bg-slate-900/60'
+    }`}>
+      <div className="flex items-center justify-between px-3 py-2 bg-slate-800/60">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-red-400">🗑</span>
+          <span className="font-mono text-slate-200 truncate">{dirName}/</span>
+          <span className="text-slate-500 truncate text-xs">{item.path}</span>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0 ml-2">
+          {status === 'idle' && (
+            <button onClick={apply} className="px-2 py-1 rounded bg-red-700 hover:bg-red-600 text-white font-medium transition-colors">
+              Apagar pasta
+            </button>
+          )}
+          {status === 'deleting' && <span className="px-2 py-1 text-slate-400">Apagando...</span>}
+          {status === 'deleted'  && <span className="px-2 py-1 text-green-400 font-medium">✓ Apagado</span>}
+          {status === 'error'    && <span className="px-2 py-1 text-red-400">✗ Erro</span>}
+        </div>
+      </div>
+      {status === 'error' && errorMsg && (
+        <p className="px-3 py-1.5 text-red-400 text-xs bg-red-950/30">{errorMsg}</p>
+      )}
+    </div>
+  );
+}
+
+function ListDirCard({ item }: { item: ListDir }) {
+  const [entries, setEntries] = useState<DirEntry[] | null>(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    listDir(item.path)
+      .then((r) => setEntries(r.entries))
+      .catch(() => setError('Falha ao listar diretório.'));
+  }, [item.path]);
+
+  return (
+    <div className="rounded-lg border border-slate-600/40 bg-slate-900/60 text-xs overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/60">
+        <span className="text-yellow-400">📂</span>
+        <span className="font-mono text-slate-200 truncate">{item.path}</span>
+      </div>
+      {error && <p className="px-3 py-2 text-red-400">{error}</p>}
+      {!entries && !error && <p className="px-3 py-2 text-slate-400 animate-pulse">Listando...</p>}
+      {entries && (
+        <ul className="px-3 py-2 space-y-0.5 max-h-48 overflow-y-auto">
+          {entries.map((e) => (
+            <li key={e.name} className="flex items-center gap-2 text-slate-300">
+              <span>{e.type === 'dir' ? '📁' : '📄'}</span>
+              <span className="font-mono">{e.name}</span>
+              {e.size !== undefined && <span className="text-slate-500 ml-auto">{(e.size / 1024).toFixed(1)}KB</span>}
+            </li>
+          ))}
+          {entries.length === 0 && <li className="text-slate-500">Diretório vazio</li>}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function ListSubdirsCard({ item }: { item: ListSubdirs }) {
+  const [entries, setEntries] = useState<DirEntry[] | null>(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    listSubdirsApi(item.path)
+      .then((r) => setEntries(r.entries))
+      .catch(() => setError('Falha ao listar subdiretórios.'));
+  }, [item.path]);
+
+  return (
+    <div className="rounded-lg border border-slate-600/40 bg-slate-900/60 text-xs overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/60">
+        <span className="text-yellow-400">📁</span>
+        <span className="text-slate-400">Subdiretórios de</span>
+        <span className="font-mono text-slate-200 truncate">{item.path}</span>
+      </div>
+      {error && <p className="px-3 py-2 text-red-400">{error}</p>}
+      {!entries && !error && <p className="px-3 py-2 text-slate-400 animate-pulse">Listando...</p>}
+      {entries && (
+        <ul className="px-3 py-2 space-y-0.5 max-h-48 overflow-y-auto">
+          {entries.map((e) => (
+            <li key={e.name} className="flex items-center gap-2 text-slate-300">
+              <span>📁</span>
+              <span className="font-mono">{e.name}</span>
+            </li>
+          ))}
+          {entries.length === 0 && <li className="text-slate-500">Nenhum subdiretório encontrado</li>}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function TreeNode({ entry, depth }: { entry: TreeEntry; depth: number }) {
+  const [collapsed, setCollapsed] = useState(false);
+  const indent = depth * 12;
+  if (entry.type === 'dir') {
+    return (
+      <li>
+        <button
+          onClick={() => setCollapsed((v) => !v)}
+          className="flex items-center gap-1 text-slate-300 hover:text-slate-100 w-full text-left"
+          style={{ paddingLeft: indent }}
+        >
+          <span className="text-yellow-400 shrink-0">{collapsed ? '▶' : '▼'}</span>
+          <span className="text-yellow-300 shrink-0">📁</span>
+          <span className="font-mono">{entry.name}</span>
+        </button>
+        {!collapsed && entry.children && entry.children.length > 0 && (
+          <ul>
+            {entry.children.map((child, i) => (
+              <TreeNode key={i} entry={child} depth={depth + 1} />
+            ))}
+          </ul>
+        )}
+      </li>
+    );
+  }
+  return (
+    <li className="flex items-center gap-1 text-slate-400" style={{ paddingLeft: indent + 16 }}>
+      <span className="shrink-0">📄</span>
+      <span className="font-mono">{entry.name}</span>
+      {entry.size !== undefined && (
+        <span className="text-slate-600 ml-auto shrink-0">{(entry.size / 1024).toFixed(1)}KB</span>
+      )}
+    </li>
+  );
+}
+
+function ListTreeCard({ item }: { item: ListTree }) {
+  const [tree, setTree] = useState<TreeEntry[] | null>(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    listTreeApi(item.path)
+      .then((r) => setTree(r.tree))
+      .catch(() => setError('Falha ao listar árvore de diretórios.'));
+  }, [item.path]);
+
+  return (
+    <div className="rounded-lg border border-slate-600/40 bg-slate-900/60 text-xs overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/60">
+        <span className="text-yellow-400">🌳</span>
+        <span className="text-slate-400">Árvore de</span>
+        <span className="font-mono text-slate-200 truncate">{item.path}</span>
+      </div>
+      {error && <p className="px-3 py-2 text-red-400">{error}</p>}
+      {!tree && !error && <p className="px-3 py-2 text-slate-400 animate-pulse">Carregando...</p>}
+      {tree && (
+        <ul className="px-2 py-2 space-y-0.5 max-h-64 overflow-y-auto">
+          {tree.map((entry, i) => (
+            <TreeNode key={i} entry={entry} depth={0} />
+          ))}
+          {tree.length === 0 && <li className="text-slate-500 px-3">Diretório vazio</li>}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function SearchFilesCard({ item }: { item: SearchFiles }) {
+  const [results, setResults] = useState<SearchResult[] | null>(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    searchFilesApi(item.path, item.query)
+      .then((r) => setResults(r.results))
+      .catch(() => setError('Falha ao buscar arquivos.'));
+  }, [item.path, item.query]);
+
+  return (
+    <div className="rounded-lg border border-slate-600/40 bg-slate-900/60 text-xs overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/60">
+        <span className="text-blue-400">🔍</span>
+        <span className="text-slate-400">Busca:</span>
+        <span className="font-mono text-slate-200">"{item.query}"</span>
+        <span className="text-slate-500">em {item.path}</span>
+      </div>
+      {error && <p className="px-3 py-2 text-red-400">{error}</p>}
+      {!results && !error && <p className="px-3 py-2 text-slate-400 animate-pulse">Buscando...</p>}
+      {results && (
+        <ul className="px-3 py-2 space-y-0.5 max-h-48 overflow-y-auto">
+          {results.map((r, i) => (
+            <li key={i} className="flex items-center gap-2 text-slate-300">
+              <span>{r.type === 'dir' ? '📁' : '📄'}</span>
+              <span className="font-mono truncate">{r.path}</span>
+            </li>
+          ))}
+          {results.length === 0 && <li className="text-slate-500">Nenhum resultado encontrado</li>}
+        </ul>
       )}
     </div>
   );
@@ -213,6 +576,78 @@ export function Message({ message }: MessageProps) {
             {message.fileChanges.map((change, i) => (
               <FileChangeCard key={i} change={change} />
             ))}
+          </div>
+        )}
+
+        {/* Renames */}
+        {message.renames && message.renames.length > 0 && (
+          <div className="mt-2 space-y-1.5">
+            <p className="text-xs text-slate-500 px-1">
+              {message.renames.length === 1 ? '1 arquivo para renomear:' : `${message.renames.length} arquivos para renomear:`}
+            </p>
+            {message.renames.map((rename, i) => (
+              <RenameCard key={i} rename={rename} />
+            ))}
+          </div>
+        )}
+
+        {/* Deletes */}
+        {message.deletes && message.deletes.length > 0 && (
+          <div className="mt-2 space-y-1.5">
+            <p className="text-xs text-slate-500 px-1">
+              {message.deletes.length === 1 ? '1 arquivo para apagar:' : `${message.deletes.length} arquivos para apagar:`}
+            </p>
+            {message.deletes.map((del, i) => (
+              <DeleteCard key={i} del={del} />
+            ))}
+          </div>
+        )}
+
+        {/* Create dirs */}
+        {message.createDirs && message.createDirs.length > 0 && (
+          <div className="mt-2 space-y-1.5">
+            <p className="text-xs text-slate-500 px-1">
+              {message.createDirs.length === 1 ? '1 diretório para criar:' : `${message.createDirs.length} diretórios para criar:`}
+            </p>
+            {message.createDirs.map((item, i) => <CreateDirCard key={i} item={item} />)}
+          </div>
+        )}
+
+        {/* Delete dirs */}
+        {message.deleteDirs && message.deleteDirs.length > 0 && (
+          <div className="mt-2 space-y-1.5">
+            <p className="text-xs text-slate-500 px-1">
+              {message.deleteDirs.length === 1 ? '1 diretório para apagar:' : `${message.deleteDirs.length} diretórios para apagar:`}
+            </p>
+            {message.deleteDirs.map((item, i) => <DeleteDirCard key={i} item={item} />)}
+          </div>
+        )}
+
+        {/* List dirs */}
+        {message.listDirs && message.listDirs.length > 0 && (
+          <div className="mt-2 space-y-1.5">
+            {message.listDirs.map((item, i) => <ListDirCard key={i} item={item} />)}
+          </div>
+        )}
+
+        {/* List subdirs */}
+        {message.listSubdirs && message.listSubdirs.length > 0 && (
+          <div className="mt-2 space-y-1.5">
+            {message.listSubdirs.map((item, i) => <ListSubdirsCard key={i} item={item} />)}
+          </div>
+        )}
+
+        {/* List tree */}
+        {message.listTrees && message.listTrees.length > 0 && (
+          <div className="mt-2 space-y-1.5">
+            {message.listTrees.map((item, i) => <ListTreeCard key={i} item={item} />)}
+          </div>
+        )}
+
+        {/* Search files */}
+        {message.searchFiles && message.searchFiles.length > 0 && (
+          <div className="mt-2 space-y-1.5">
+            {message.searchFiles.map((item, i) => <SearchFilesCard key={i} item={item} />)}
           </div>
         )}
 

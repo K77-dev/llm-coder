@@ -33,6 +33,58 @@ export interface FileChange {
   content: string;
 }
 
+export interface RenameChange {
+  from: string;
+  to: string;
+}
+
+export interface DeleteChange {
+  path: string;
+}
+
+export interface ListDir {
+  path: string;
+}
+
+export interface ListSubdirs {
+  path: string;
+}
+
+export interface ListTree {
+  path: string;
+}
+
+export interface CreateDir {
+  path: string;
+}
+
+export interface DeleteDir {
+  path: string;
+}
+
+export interface TreeEntry {
+  name: string;
+  type: 'file' | 'dir';
+  size?: number;
+  children?: TreeEntry[];
+}
+
+export interface SearchFiles {
+  path: string;
+  query: string;
+}
+
+export interface DirEntry {
+  name: string;
+  type: 'file' | 'dir';
+  size?: number;
+}
+
+export interface SearchResult {
+  path: string;
+  type: 'file' | 'dir';
+}
+
 export interface CommandSuggestion {
   command: string;
   cwd?: string;
@@ -43,6 +95,14 @@ export interface ChatResponse {
   response: string;
   codeBlocks: Array<{ language: string; code: string }>;
   fileChanges: FileChange[];
+  renames: RenameChange[];
+  deletes: DeleteChange[];
+  createDirs: CreateDir[];
+  deleteDirs: DeleteDir[];
+  listDirs: ListDir[];
+  listSubdirs: ListSubdirs[];
+  listTrees: ListTree[];
+  searchFiles: SearchFiles[];
   commands: CommandSuggestion[];
   model: 'local' | 'claude';
   sources: ChatSource[];
@@ -152,6 +212,46 @@ export async function clearIndex(repo?: string): Promise<{ status: string; remov
 
 export async function writeFile(filePath: string, content: string): Promise<{ status: string; path: string }> {
   const { data } = await api.post('/files/write', { path: filePath, content });
+  return data;
+}
+
+export async function renameFile(from: string, to: string): Promise<{ status: string; from: string; to: string }> {
+  const { data } = await api.post('/files/rename', { from, to });
+  return data;
+}
+
+export async function deleteFile(filePath: string): Promise<{ status: string; path: string }> {
+  const { data } = await api.delete('/files/delete', { data: { path: filePath } });
+  return data;
+}
+
+export async function createDir(dirPath: string): Promise<{ status: string; path: string }> {
+  const { data } = await api.post('/files/mkdir', { path: dirPath });
+  return data;
+}
+
+export async function deleteDir(dirPath: string): Promise<{ status: string; path: string }> {
+  const { data } = await api.delete('/files/rmdir', { data: { path: dirPath } });
+  return data;
+}
+
+export async function listDir(dirPath: string): Promise<{ path: string; entries: DirEntry[] }> {
+  const { data } = await api.get('/files/list', { params: { path: dirPath } });
+  return data;
+}
+
+export async function listSubdirs(dirPath: string): Promise<{ path: string; entries: DirEntry[] }> {
+  const { data } = await api.get('/files/list', { params: { path: dirPath, type: 'dir' } });
+  return data;
+}
+
+export async function searchFiles(dirPath: string, query: string): Promise<{ path: string; query: string; results: SearchResult[] }> {
+  const { data } = await api.get('/files/search', { params: { path: dirPath, query } });
+  return data;
+}
+
+export async function listTree(dirPath: string, depth?: number): Promise<{ path: string; tree: TreeEntry[] }> {
+  const { data } = await api.get('/files/tree', { params: { path: dirPath, depth } });
   return data;
 }
 

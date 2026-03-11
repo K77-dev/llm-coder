@@ -7,7 +7,6 @@ import { Message } from './Message';
 export function ChatInterface() {
   const { messages, isLoading, error, sendMessage, clearMessages } = useChat();
   const [input, setInput] = useState('');
-  const [useStream, setUseStream] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -20,7 +19,7 @@ export function ChatInterface() {
     if (!input.trim() || isLoading) return;
     const msg = input.trim();
     setInput('');
-    await sendMessage(msg, { useStream });
+    await sendMessage(msg, { useStream: true });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -60,7 +59,7 @@ export function ChatInterface() {
               {EXAMPLE_QUERIES.map((q) => (
                 <button
                   key={q}
-                  onClick={() => sendMessage(q, { useStream })}
+                  onClick={() => sendMessage(q, { useStream: true })}
                   className="text-left px-4 py-2 text-sm text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors"
                 >
                   {q}
@@ -111,16 +110,7 @@ export function ChatInterface() {
             {isLoading ? '...' : 'Enviar'}
           </button>
         </form>
-        <div className="flex items-center gap-4 mt-2">
-          <label className="flex items-center gap-1.5 text-xs text-slate-400 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={useStream}
-              onChange={(e) => setUseStream(e.target.checked)}
-              className="accent-blue-500"
-            />
-            Streaming
-          </label>
+        <div className="mt-2">
           <span className="text-xs text-slate-500">Enter para enviar · Shift+Enter para nova linha</span>
         </div>
       </div>

@@ -23,6 +23,34 @@ export function hello(name: string): string {
 }
 </write_file>
 
+Para renomear ou mover um arquivo, use SEMPRE este formato (nunca use mv via run_command):
+
+<rename_file from="/caminho/absoluto/origem.ext" to="/caminho/absoluto/destino.ext" />
+
+Para apagar um arquivo, use SEMPRE este formato (nunca use rm via run_command):
+
+<delete_file path="/caminho/absoluto/arquivo.ext" />
+
+Para criar um diretório, use SEMPRE este formato (nunca use mkdir via run_command):
+
+<create_dir path="/caminho/absoluto/novo-diretório" />
+
+Para apagar um diretório (e todo seu conteúdo), use SEMPRE este formato (nunca use rm via run_command):
+
+<delete_dir path="/caminho/absoluto/diretório" />
+
+Para mover ou renomear um diretório, use o mesmo formato de rename_file (funciona para diretórios também):
+
+<rename_file from="/caminho/absoluto/origem" to="/caminho/absoluto/destino" />
+
+Para listar o conteúdo de um diretório (subdiretórios e arquivos), use SEMPRE este formato:
+
+<list_tree path="/caminho/absoluto/diretório" />
+
+Para buscar arquivos por nome dentro de um diretório:
+
+<search_files path="/caminho/absoluto/diretório" query="nome-do-arquivo" />
+
 Quando sugerir um comando de terminal:
 
 <run_command cwd="${defaultPath}" description="o que o comando faz">
@@ -34,7 +62,14 @@ Regras:
 - Siga SOLID e DDD
 - Use TypeScript/generics Java
 - Para múltiplos comandos, use um run_command por comando
-- Caminhos de arquivos sempre absolutos (~/... ou /...)`;
+- Caminhos de arquivos sempre absolutos (~/... ou /...)
+- Para renomear/mover arquivos, SEMPRE use <rename_file>, nunca mv
+- Para apagar arquivos, SEMPRE use <delete_file>, nunca rm
+- Para criar diretórios, SEMPRE use <create_dir>, nunca mkdir via run_command
+- Para apagar diretórios, SEMPRE use <delete_dir>, nunca rm -rf via run_command
+- Para mover/renomear diretórios, use <rename_file> (funciona para dirs também)
+- Para listar o conteúdo de um diretório (qualquer listagem), SEMPRE use <list_tree>, nunca <list_dir> nem <list_subdirs>
+- Para buscar arquivos, use <search_files>`;
 }
 
 
