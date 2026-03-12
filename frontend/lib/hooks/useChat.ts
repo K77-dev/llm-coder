@@ -2,7 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import { sendChat, streamChat, ChatMessage, ChatSource, FileChange, RenameChange, DeleteChange, CreateDir, DeleteDir, ListDir, ListSubdirs, ListTree, SearchFiles, CommandSuggestion } from '../api';
 
 const WRITE_FILE_REGEX = /<write_file\s+path="([^"]+)">([\s\S]*?)<\/write_file>/g;
-const RENAME_FILE_REGEX = /<rename_file\s+from="([^"]+)"\s+to="([^"]+)"\s*\/?>/g;
+const RENAME_FILE_REGEX = /<rename(?:_file)?\s+(?:from="|file=")([^"]+)"(?:\s+to="|"\s+to=")([^"]+)"\s*\/?>/g;
 const DELETE_FILE_REGEX = /<delete_file\s+path="([^"]+)"\s*\/?>/g;
 const LIST_DIR_REGEX = /<list_dir\s+path="([^"]+)"\s*\/?>/g;
 const LIST_SUBDIRS_REGEX = /<list_subdirs\s+path="([^"]+)"\s*\/?>/g;
@@ -12,7 +12,60 @@ const DELETE_DIR_REGEX = /<delete_dir\s+path="([^"]+)"\s*\/?>/g;
 const SEARCH_FILES_REGEX = /<search_files\s+path="([^"]+)"\s+query="([^"]+)"\s*\/?>/g;
 const RUN_COMMAND_REGEX = /<run_command(?:\s+cwd="([^"]*)")?(?:\s+description="([^"]*)")?\s*>([\s\S]*?)<\/run_command>/g;
 
+/**
+ * Normalizes malformed AI output into canonical XML tags before parsing.
+ * Handles common variations from small LLMs (qwen2.5-coder:7b) that don't
+ * reliably follow the exact XML format specified in the system prompt.
+ */
+function normalizeAIOutput(raw: string): string {
+  let result = raw;
+
+  // --- Normalize mv commands to <rename_file> ---
+  // <run command="mv X Y" /> or <run command="mv X Y">
+  result = result.replace(/<run\s+command="mv\s+([^\s"]+)\s+([^\s"]+)"\s*\/?>/g,
+    '<rename_file from="$1" to="$2" />');
+  // mv inside <run_command>...</run_command>
+  result = result.replace(/<run_command(?:\s+[^>]*)?>[\s]*mv\s+([^\s]+)\s+([^\s<]+)[\s]*<\/run_command>/g,
+    '<rename_file from="$1" to="$2" />');
+  // <code>mv X Y</code> or `mv X Y`
+  result = result.replace(/<code>mv\s+([^\s<]+)\s+([^\s<]+)<\/code>/g,
+    '<rename_file from="$1" to="$2" />');
+  result = result.replace(/`mv\s+([^\s`]+)\s+([^\s`]+)`/g,
+    '<rename_file from="$1" to="$2" />');
+
+  // --- Normalize rm commands to <delete_file> ---
+  result = result.replace(/<run\s+command="rm\s+(?:-[rf]+\s+)?([^\s"]+)"\s*\/?>/g,
+    '<delete_file path="$1" />');
+  result = result.replace(/<run_command(?:\s+[^>]*)?>[\s]*rm\s+(?:-[rf]+\s+)?([^\s<]+)[\s]*<\/run_command>/g,
+    '<delete_file path="$1" />');
+
+  // --- Normalize mkdir commands to <create_dir> ---
+  result = result.replace(/<run\s+command="mkdir\s+(?:-p\s+)?([^\s"]+)"\s*\/?>/g,
+    '<create_dir path="$1" />');
+  result = result.replace(/<run_command(?:\s+[^>]*)?>[\s]*mkdir\s+(?:-p\s+)?([^\s<]+)[\s]*<\/run_command>/g,
+    '<create_dir path="$1" />');
+
+  // --- Normalize <delete path="..."/> to <delete_file path="..."/> ---
+  result = result.replace(/<delete\s+path="([^"]+)"\s*\/?>/g,
+    '<delete_file path="$1" />');
+
+  // --- Normalize <move from="..." to="..."/> to <rename_file> ---
+  result = result.replace(/<move(?:_file)?\s+from="([^"]+)"\s+to="([^"]+)"\s*\/?>/g,
+    '<rename_file from="$1" to="$2" />');
+
+  // --- Normalize <create path="..."/> to <create_dir> ---
+  result = result.replace(/<create\s+path="([^"]+)"\s*\/?>/g,
+    '<create_dir path="$1" />');
+
+  // --- Normalize <ls path="..."/> or <list path="..."/> to <list_tree> ---
+  result = result.replace(/<(?:ls|list)\s+path="([^"]+)"\s*\/?>/g,
+    '<list_tree path="$1" />');
+
+  return result;
+}
+
 function parseStreamedContent(raw: string): { text: string; fileChanges: FileChange[]; renames: RenameChange[]; deletes: DeleteChange[]; createDirs: CreateDir[]; deleteDirs: DeleteDir[]; listDirs: ListDir[]; listSubdirs: ListSubdirs[]; listTrees: ListTree[]; searchFiles: SearchFiles[]; commands: CommandSuggestion[] } {
+  raw = normalizeAIOutput(raw);
   const fileChanges: FileChange[] = [];
   const renames: RenameChange[] = [];
   const deletes: DeleteChange[] = [];
