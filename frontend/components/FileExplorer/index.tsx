@@ -185,6 +185,16 @@ export function FileExplorer({ rootPath, onFileSelect, selectedFile }: FileExplo
     }
   }, [rootPath, loadDir]);
 
+  // Refresh all open dirs when a filesystem operation completes
+  useEffect(() => {
+    const refresh = () => {
+      loadDir(rootPath);
+      expandedDirs.forEach(dir => loadDir(dir));
+    };
+    window.addEventListener('fs:changed', refresh);
+    return () => window.removeEventListener('fs:changed', refresh);
+  }, [rootPath, expandedDirs, loadDir]);
+
   const toggleDir = useCallback(async (path: string) => {
     if (expandedDirs.has(path)) {
       setExpandedDirs(prev => {

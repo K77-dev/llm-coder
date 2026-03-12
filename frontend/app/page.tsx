@@ -2,29 +2,20 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { FileExplorer } from '../components/FileExplorer';
-import { CodeViewer } from '../components/CodeViewer';
 import { ChatInterface } from '../components/ChatInterface';
 import { DirectoryPicker } from '../components/DirectoryPicker';
 import { useTheme } from '../components/ThemeProvider';
 import { checkHealth, indexDirectory, clearIndex } from '../lib/api';
 
-interface OpenFile {
-  path: string;
-  name: string;
-}
-
 export default function Home() {
   const [projectDir, setProjectDir] = useState('');
-  const [openFiles, setOpenFiles] = useState<OpenFile[]>([]);
   const [activeFile, setActiveFile] = useState<string | undefined>();
-  const [chatHeight, setChatHeight] = useState(320);
   const [sidebarWidth, setSidebarWidth] = useState(260);
   const [sidebarVisible, setSidebarVisible] = useState(true);
-  const [chatVisible, setChatVisible] = useState(true);
   const [showPicker, setShowPicker] = useState(false);
   const { theme, toggleTheme } = useTheme();
 
-  const [health, setHealth] = useState<{ ollama?: { available: boolean; models: string[] }; database?: { indexed_chunks: number }; indexing?: { running: boolean } } | null>(null);
+  const [health, setHealth] = useState<{ ollama?: { available: boolean; models: string[] }; config?: { llmModel: string; embeddingModel: string }; database?: { indexed_chunks: number }; indexing?: { running: boolean } } | null>(null);
   const [indexing, setIndexing] = useState(false);
 
   const resizingRef = useRef<'chat' | 'sidebar' | null>(null);
@@ -41,27 +32,6 @@ export default function Home() {
   }, []);
 
   const handleFileSelect = useCallback((path: string) => {
-    const name = path.split('/').pop() || path;
-    setOpenFiles(prev => {
-      if (prev.find(f => f.path === path)) return prev;
-      return [...prev, { path, name }];
-    });
-    setActiveFile(path);
-  }, []);
-
-  const handleTabClose = useCallback((path: string) => {
-    setOpenFiles(prev => {
-      const next = prev.filter(f => f.path !== path);
-      setActiveFile(current =>
-        current === path
-          ? (next.length > 0 ? next[next.length - 1].path : undefined)
-          : current
-      );
-      return next;
-    });
-  }, []);
-
-  const handleTabSelect = useCallback((path: string) => {
     setActiveFile(path);
   }, []);
 
@@ -69,7 +39,6 @@ export default function Home() {
     setProjectDir(path);
     localStorage.setItem('projectDir', path);
     setShowPicker(false);
-    setOpenFiles([]);
     setActiveFile(undefined);
     setIndexing(true);
     try {
@@ -82,11 +51,7 @@ export default function Home() {
   // Resize handlers
   useEffect(() => {
     const handleMove = (e: MouseEvent) => {
-      if (resizingRef.current === 'chat') {
-        const statusBarH = 24;
-        const newH = Math.max(120, Math.min(window.innerHeight - 250, window.innerHeight - e.clientY - statusBarH));
-        setChatHeight(newH);
-      } else if (resizingRef.current === 'sidebar') {
+      if (resizingRef.current === 'sidebar') {
         const activityBarW = 48;
         const newW = Math.max(160, Math.min(500, e.clientX - activityBarW));
         setSidebarWidth(newW);
@@ -105,15 +70,17 @@ export default function Home() {
     };
   }, []);
 
-  const startResize = (type: 'chat' | 'sidebar') => {
-    resizingRef.current = type;
-    document.body.style.cursor = type === 'chat' ? 'row-resize' : 'col-resize';
+  const startResize = () => {
+    resizingRef.current = 'sidebar';
+    document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
   };
 
   const ollamaOk = health?.ollama?.available;
   const chunks = health?.database?.indexed_chunks || 0;
   const ollamaModel = health?.ollama?.models?.[0] || '';
+  const llmModel = health?.config?.llmModel || '';
+  const embeddingModel = health?.config?.embeddingModel || '';
 
   return (
     <div className="flex flex-col h-screen bg-[#1e1e1e] text-white overflow-hidden">
@@ -134,18 +101,6 @@ export default function Home() {
               <path d="M20 3h-6a1 1 0 00-1 1v6a1 1 0 001 1h6a1 1 0 001-1V4a1 1 0 00-1-1z" />
               <path d="M10 13H4a1 1 0 00-1 1v6a1 1 0 001 1h6a1 1 0 001-1v-6a1 1 0 00-1-1z" />
               <path d="M20 13h-6a1 1 0 00-1 1v6a1 1 0 001 1h6a1 1 0 001-1v-6a1 1 0 00-1-1z" />
-            </svg>
-          </button>
-
-          <button
-            onClick={() => setChatVisible(v => !v)}
-            className={`w-12 h-12 flex items-center justify-center hover:text-white transition-colors ${
-              chatVisible ? 'text-white' : 'text-neutral-500'
-            }`}
-            title="Chat (Ctrl+J)"
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
             </svg>
           </button>
 
@@ -227,37 +182,14 @@ export default function Home() {
             {/* Sidebar resize handle */}
             <div
               className="w-[3px] bg-transparent hover:bg-[#007acc] cursor-col-resize shrink-0 transition-colors"
-              onMouseDown={() => startResize('sidebar')}
+              onMouseDown={() => startResize()}
             />
           </>
         )}
 
-        {/* Main editor area */}
+        {/* Main area: chat only */}
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
-          {/* Code viewer */}
-          <div className="flex-1 min-h-[100px]">
-            <CodeViewer
-              openFiles={openFiles}
-              activeFile={activeFile}
-              onTabSelect={handleTabSelect}
-              onTabClose={handleTabClose}
-            />
-          </div>
-
-          {/* Chat panel */}
-          {chatVisible && (
-            <>
-              {/* Chat resize handle */}
-              <div
-                className="h-[3px] bg-transparent hover:bg-[#007acc] cursor-row-resize shrink-0 transition-colors"
-                onMouseDown={() => startResize('chat')}
-              />
-              {/* Chat container */}
-              <div style={{ height: chatHeight }} className="shrink-0 border-t border-[#252526]">
-                <ChatInterface compact />
-              </div>
-            </>
-          )}
+          <ChatInterface compact />
         </div>
       </div>
 
@@ -299,7 +231,25 @@ export default function Home() {
               {getLanguageForStatus(activeFile)}
             </span>
           )}
-          <span>Code LLM v1.0</span>
+          {llmModel && (
+            <span className="flex items-center gap-1.5" title="Modelo LLM">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-70">
+                <path d="M12 2a10 10 0 100 20 10 10 0 000-20z" />
+                <path d="M12 8v4l3 3" />
+              </svg>
+              <span className="text-white/80 font-mono">{llmModel}</span>
+            </span>
+          )}
+          {embeddingModel && (
+            <span className="flex items-center gap-1.5 text-white/50" title="Modelo de embeddings">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
+              </svg>
+              <span className="font-mono">{embeddingModel}</span>
+            </span>
+          )}
+          <span className="text-white/40">Code LLM v1.0</span>
         </div>
       </div>
 

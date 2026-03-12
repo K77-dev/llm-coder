@@ -19,6 +19,10 @@ router.get('/', async (_req, res) => {
       available: ollamaOk,
       models,
     },
+    config: {
+      llmModel: process.env.LLM_MODEL || 'qwen2.5-coder:7b',
+      embeddingModel: process.env.EMBEDDING_MODEL || 'nomic-embed-text',
+    },
     database: {
       indexed_chunks: chunkCount,
     },

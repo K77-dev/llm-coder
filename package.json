@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "BBTS Code LLM - Especialista em Java, Node.js, React e Angular",
   "private": true,
+  "main": "electron/dist/main.js",
   "workspaces": [
     "backend",
     "frontend",
@@ -18,12 +19,41 @@
     "index:full": "npx ts-node scripts/index-repos.ts --full",
     "cache:clean": "npx ts-node scripts/cache-clean.ts",
     "stop": "pkill -f 'next|express|node.*dev' || true",
-    "clean": "rm -rf backend/node_modules frontend/node_modules node_modules"
+    "clean": "rm -rf backend/node_modules frontend/node_modules node_modules",
+    "electron:compile": "tsc -p electron/tsconfig.json",
+    "electron:dev": "npm run electron:compile && env -u ELECTRON_RUN_AS_NODE NODE_ENV=development NODE_BINARY=$(which node) npx electron .",
+    "electron:build": "npm run build --workspace=backend && NEXT_EXPORT=true NEXT_PUBLIC_API_URL=http://localhost:3001 npm run build --workspace=frontend && npm run electron:compile",
+    "electron:pack": "npm run electron:build && env -u ELECTRON_RUN_AS_NODE npx electron-builder"
+  },
+  "build": {
+    "appId": "com.bbts.code-llm",
+    "productName": "Code LLM",
+    "files": [
+      "electron/dist/**",
+      "backend/dist/**",
+      "backend/node_modules/**",
+      "frontend/out/**",
+      ".env"
+    ],
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.developer-tools"
+    },
+    "linux": {
+      "target": "AppImage"
+    },
+    "win": {
+      "target": "nsis"
+    }
   },
   "devDependencies": {
+    "@types/node": "^25.5.0",
     "concurrently": "^8.2.2",
+    "electron": "^39.8.1",
+    "electron-builder": "^24.13.3",
     "ts-node": "^10.9.2",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "wait-on": "^7.2.0"
   },
   "dependencies": {
     "better-sqlite3": "^9.4.3"

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
 import { Message as MessageType } from '../../lib/hooks/useChat';
 import { writeFile, renameFile, deleteFile, createDir, deleteDir, listDir, listSubdirs as listSubdirsApi, searchFiles as searchFilesApi, listTree as listTreeApi, FileChange, RenameChange, DeleteChange, CreateDir, DeleteDir, ListDir, ListSubdirs, ListTree, SearchFiles, DirEntry, TreeEntry, SearchResult, CommandSuggestion, execCommand } from '../../lib/api';
 
@@ -95,7 +96,7 @@ function RenameCard({ rename }: { rename: RenameChange }) {
   const [errorMsg, setErrorMsg] = useState('');
   const apply = async () => {
     setStatus('applying');
-    try { await renameFile(rename.from, rename.to); setStatus('applied'); }
+    try { await renameFile(rename.from, rename.to); setStatus('applied'); window.dispatchEvent(new CustomEvent('fs:changed')); }
     catch (err) { setStatus('error'); setErrorMsg(err instanceof Error ? err.message : 'Falha ao renomear.'); }
   };
   const cardStatus = status === 'applied' ? 'ok' : status === 'error' ? 'err' : 'neutral';
@@ -126,7 +127,7 @@ function DeleteCard({ del }: { del: DeleteChange }) {
   const [errorMsg, setErrorMsg] = useState('');
   const apply = async () => {
     setStatus('deleting');
-    try { await deleteFile(del.path); setStatus('deleted'); }
+    try { await deleteFile(del.path); setStatus('deleted'); window.dispatchEvent(new CustomEvent('fs:changed')); }
     catch (err) { setStatus('error'); setErrorMsg(err instanceof Error ? err.message : 'Falha ao apagar.'); }
   };
   const cardStatus = status === 'deleted' ? 'ok' : status === 'error' ? 'err' : 'neutral';
@@ -472,6 +473,7 @@ export function Message({ message }: MessageProps) {
             {message.content && (
               <div className="text-[13px] leading-[20px] text-neutral-300 font-mono">
                 <ReactMarkdown
+                  rehypePlugins={[rehypeRaw]}
                   components={{
                     p({ children }) {
                       return <p className="mb-2 last:mb-0">{children}</p>;
