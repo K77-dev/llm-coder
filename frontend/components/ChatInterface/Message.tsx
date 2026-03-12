@@ -96,7 +96,7 @@ function RenameCard({ rename }: { rename: RenameChange }) {
   const apply = async () => {
     setStatus('applying');
     try { await renameFile(rename.from, rename.to); setStatus('applied'); }
-    catch { setStatus('error'); setErrorMsg('Falha ao renomear.'); }
+    catch (err) { setStatus('error'); setErrorMsg(err instanceof Error ? err.message : 'Falha ao renomear.'); }
   };
   const cardStatus = status === 'applied' ? 'ok' : status === 'error' ? 'err' : 'neutral';
   return (
@@ -127,7 +127,7 @@ function DeleteCard({ del }: { del: DeleteChange }) {
   const apply = async () => {
     setStatus('deleting');
     try { await deleteFile(del.path); setStatus('deleted'); }
-    catch { setStatus('error'); setErrorMsg('Falha ao apagar.'); }
+    catch (err) { setStatus('error'); setErrorMsg(err instanceof Error ? err.message : 'Falha ao apagar.'); }
   };
   const cardStatus = status === 'deleted' ? 'ok' : status === 'error' ? 'err' : 'neutral';
   return (

@@ -183,14 +183,18 @@ export function ChatInterface({ compact }: ChatInterfaceProps) {
       const fileContents = await Promise.all(
         attachedFiles.map(async (file) => {
           if (file.type === 'dir') {
-            return `[Diretorio referenciado: ${file.relativePath}]`;
+            return `=== Diretório referenciado ===\nCaminho absoluto: ${file.path}\nNome: ${file.name}\n===`;
+          }
+          const ext = file.name.split('.').pop()?.toLowerCase() || '';
+          const BINARY_EXTS = new Set(['docx','xlsx','pptx','pdf','zip','tar','gz','rar','7z','exe','dll','so','dylib','png','jpg','jpeg','gif','bmp','ico','svg','mp3','mp4','avi','mov','woff','woff2','ttf','otf','eot','class','jar','war','ear','db','sqlite']);
+          if (BINARY_EXTS.has(ext)) {
+            return `=== Arquivo referenciado ===\nCaminho absoluto: ${file.path}\nNome: ${file.name}\nTipo: binário (${ext}) — conteúdo não exibido\n===`;
           }
           try {
             const result = await readFile(file.path);
-            const ext = file.name.split('.').pop() || '';
-            return `[Arquivo: ${file.relativePath}]\n\`\`\`${ext}\n${result.content}\n\`\`\``;
+            return `=== Arquivo referenciado ===\nCaminho absoluto: ${file.path}\nNome: ${file.name}\nConteúdo:\n\`\`\`${ext}\n${result.content}\n\`\`\`\n===`;
           } catch {
-            return `[Arquivo: ${file.relativePath}] (falha ao ler)`;
+            return `=== Arquivo referenciado ===\nCaminho absoluto: ${file.path}\nNome: ${file.name}\n(falha ao ler conteúdo)\n===`;
           }
         })
       );

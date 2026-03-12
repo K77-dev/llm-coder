@@ -63,7 +63,17 @@ router.post('/rename', (req: Request, res: Response, next: NextFunction) => {
     if (!rawTo) throw new AppError(400, 'to é obrigatório');
 
     const resolvedFrom = resolveSafePath(rawFrom);
-    const resolvedTo = resolveSafePath(rawTo);
+
+    // Se `to` é apenas um nome de arquivo (sem /), resolve relativo ao dir de `from`
+    let resolvedTo: string;
+    const expandedTo = rawTo.replace(/^~/, process.env.HOME || '');
+    if (path.isAbsolute(expandedTo)) {
+      resolvedTo = expandedTo;
+    } else if (!expandedTo.includes('/')) {
+      resolvedTo = path.join(path.dirname(resolveSafePath(rawFrom)), expandedTo);
+    } else {
+      resolvedTo = path.join(process.env.HOME || '/tmp', expandedTo);
+    }
 
     if (!fs.existsSync(resolvedFrom)) throw new AppError(404, `Arquivo não encontrado: ${resolvedFrom}`);
 
