@@ -119,6 +119,32 @@ function waitForBackend(maxMs = 30_000): Promise<void> {
   });
 }
 
+// ── Poll frontend until ready (dev only) ────────────────────────────────────
+
+function waitForFrontend(maxMs = 60_000): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const start = Date.now();
+    const check = () => {
+      http.get(FRONTEND_DEV_URL, (res) => {
+        if (res.statusCode && res.statusCode < 500) {
+          resolve();
+        } else {
+          retry();
+        }
+        res.resume();
+      }).on('error', retry);
+    };
+    const retry = () => {
+      if (Date.now() - start > maxMs) {
+        reject(new Error('Frontend did not start in time'));
+        return;
+      }
+      setTimeout(check, 1000);
+    };
+    check();
+  });
+}
+
 // ── LlamaServerManager setup ────────────────────────────────────────────────
 
 function initializeLlamaManager(): void {
@@ -267,6 +293,16 @@ app.whenReady().then(async () => {
   } catch (err) {
     console.error(err);
     // Continue anyway — backend may still be loading
+  }
+
+  if (isDev) {
+    try {
+      console.log('[frontend] Waiting for Next.js dev server...');
+      await waitForFrontend();
+      console.log('[frontend] Ready');
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   createWindow();
