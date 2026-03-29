@@ -259,3 +259,43 @@ export async function readFile(filePath: string): Promise<{ path: string; conten
   const { data } = await api.get('/files/read', { params: { path: filePath } });
   return data;
 }
+
+// Llama models API
+
+export interface LlamaModelInfo {
+  fileName: string;
+  displayName: string;
+  sizeBytes: number;
+  path: string;
+}
+
+export interface LlamaModelsResponse {
+  models: LlamaModelInfo[];
+  status: 'available' | 'no_directory';
+}
+
+export interface LlamaSelectResponse {
+  success: boolean;
+  activeModel: string;
+}
+
+export interface LlamaStatusResponse {
+  activeModel: string | null;
+  status: 'stopped' | 'starting' | 'running' | 'error';
+  pid: number | null;
+}
+
+export async function getLlamaModels(): Promise<LlamaModelsResponse> {
+  const { data } = await api.get<LlamaModelsResponse>('/llama/models');
+  return data;
+}
+
+export async function selectLlamaModel(fileName: string): Promise<LlamaSelectResponse> {
+  const { data } = await api.post<LlamaSelectResponse>('/llama/select', { fileName });
+  return data;
+}
+
+export async function getLlamaStatus(): Promise<LlamaStatusResponse> {
+  const { data } = await api.get<LlamaStatusResponse>('/llama/status');
+  return data;
+}

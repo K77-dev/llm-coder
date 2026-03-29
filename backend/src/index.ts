@@ -6,6 +6,7 @@ import { createRoutes } from './api/routes';
 import { errorHandler } from './api/middleware/error';
 import { logger } from './utils/logger';
 import { initDatabase } from './db/sqlite-client';
+import { autoStartLlamaServer } from './api/controllers/llama.controller';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -35,6 +36,7 @@ app.use(errorHandler);
 async function start() {
   try {
     await initDatabase();
+    autoStartLlamaServer();
     app.listen(PORT, () => {
       logger.info({ port: PORT }, 'Code LLM Backend started');
     });

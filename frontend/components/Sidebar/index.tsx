@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { checkHealth, indexDirectory, getIndexStatus, clearIndex } from '../../lib/api';
 import { DirectoryPicker } from '../DirectoryPicker';
 import { useTheme } from '../ThemeProvider';
+import { ModelSelector } from './ModelSelector';
 
 interface HealthStatus {
   status: string;
@@ -175,6 +176,9 @@ export function Sidebar() {
             />
           </div>
         </div>
+
+        {/* Local Models (llama-server) */}
+        <ModelSelector collapsed={collapsed} />
 
         {/* Models */}
         {health?.ollama.models && health.ollama.models.length > 0 && (

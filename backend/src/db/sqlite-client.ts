@@ -3,6 +3,7 @@ import path from 'path';
 import os from 'os';
 import fs from 'fs';
 import { logger } from '../utils/logger';
+import { runLlamaSettingsMigration } from './migrations/add-llama-settings';
 
 const DB_DIR = path.resolve((process.env.DB_PATH || '~/.code-llm/vectors.db').replace('~', os.homedir())).replace('/vectors.db', '');
 const VECTORS_DB = path.join(DB_DIR, 'vectors.db');
@@ -91,6 +92,27 @@ function runMigrations(): void {
       expires_at DATETIME NOT NULL
     );
   `);
+
+  runLlamaSettingsMigration(vectorsDb);
+}
+
+export function getLlamaSetting(key: string): string | null {
+  const db = getVectorsDb();
+  const row = db.prepare('SELECT value FROM llama_settings WHERE key = ?').get(key) as { value: string } | undefined;
+  return row?.value ?? null;
+}
+
+export function setLlamaSetting(key: string, value: string): void {
+  const db = getVectorsDb();
+  const updatedAt = new Date().toISOString();
+  db.prepare(
+    'INSERT INTO llama_settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at'
+  ).run(key, value, updatedAt);
+}
+
+export function deleteLlamaSetting(key: string): void {
+  const db = getVectorsDb();
+  db.prepare('DELETE FROM llama_settings WHERE key = ?').run(key);
 }
 
 export function closeDatabase(): void {

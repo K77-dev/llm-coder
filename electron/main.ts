@@ -1,8 +1,27 @@
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { app, BrowserWindow, shell } = require('electron') as typeof import('electron');
+const { app, BrowserWindow, shell, ipcMain } = require('electron') as typeof import('electron');
 import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
+import fs from 'fs';
 import http from 'http';
+import { LlamaServerManager } from './llama-server-manager';
+
+// Load .env into process.env for the main process
+const envPath = path.join(__dirname, '..', '..', '.env');
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, 'utf-8');
+  for (const line of envContent.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eqIdx = trimmed.indexOf('=');
+    if (eqIdx === -1) continue;
+    const key = trimmed.slice(0, eqIdx).trim();
+    const value = trimmed.slice(eqIdx + 1).trim().replace(/^~/, require('os').homedir());
+    if (!process.env[key]) {
+      process.env[key] = value;
+    }
+  }
+}
 
 const isDev = process.env.NODE_ENV === 'development';
 const BACKEND_PORT = 3001;
@@ -13,6 +32,8 @@ type BrowserWindowType = InstanceType<typeof BrowserWindow>;
 let mainWindow: BrowserWindowType | null = null;
 let backendProcess: ChildProcess | null = null;
 let frontendProcess: ChildProcess | null = null;
+let llamaManager: LlamaServerManager | null = null;
+let unsubscribeLlamaState: (() => void) | null = null;
 
 // ── Resolve paths ────────────────────────────────────────────────────────────
 
@@ -98,6 +119,99 @@ function waitForBackend(maxMs = 30_000): Promise<void> {
   });
 }
 
+// ── LlamaServerManager setup ────────────────────────────────────────────────
+
+function initializeLlamaManager(): void {
+  llamaManager = new LlamaServerManager();
+  registerLlamaIpcHandlers();
+  subscribeToLlamaStateChanges();
+}
+
+function registerLlamaIpcHandlers(): void {
+  ipcMain.handle('llama:get-models', () => {
+    const modelsDir = process.env.LLAMA_MODELS_DIR;
+    if (!modelsDir || !llamaManager) {
+      return [];
+    }
+    return llamaManager.scanModels(modelsDir);
+  });
+
+  ipcMain.handle('llama:get-state', () => {
+    if (!llamaManager) {
+      return { status: 'stopped', activeModel: null, port: 8080, pid: null, error: null };
+    }
+    return llamaManager.getState();
+  });
+
+  ipcMain.handle('llama:select-model', async (_event, fileName: string) => {
+    if (!llamaManager) {
+      throw new Error('LlamaServerManager not initialized');
+    }
+    const modelsDir = process.env.LLAMA_MODELS_DIR;
+    if (!modelsDir) {
+      throw new Error('LLAMA_MODELS_DIR not configured');
+    }
+    const modelPath = path.join(modelsDir, fileName);
+    await llamaManager.restart(modelPath);
+    persistLastActiveModel(fileName);
+  });
+}
+
+function subscribeToLlamaStateChanges(): void {
+  if (!llamaManager) return;
+  unsubscribeLlamaState = llamaManager.onStateChange((state) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('llama:state-changed', state);
+    }
+  });
+}
+
+async function autoStartLlama(): Promise<void> {
+  if (!llamaManager) return;
+  const modelsDir = process.env.LLAMA_MODELS_DIR;
+  if (!modelsDir) {
+    console.log('[llama] LLAMA_MODELS_DIR not set, skipping auto-start');
+    return;
+  }
+  let modelToLoad = loadLastActiveModel();
+  if (!modelToLoad) {
+    const availableModels = llamaManager.scanModels(modelsDir);
+    if (availableModels.length > 0) {
+      modelToLoad = availableModels[0].fileName;
+      console.log(`[llama] No last active model found, using first available: ${modelToLoad}`);
+    }
+  }
+  if (!modelToLoad) {
+    console.log('[llama] No models available, skipping auto-start');
+    return;
+  }
+  const modelPath = path.join(modelsDir, modelToLoad);
+  try {
+    await llamaManager.start(modelPath);
+  } catch (err) {
+    console.error('[llama] Failed to auto-start llama-server:', err);
+  }
+}
+
+function persistLastActiveModel(fileName: string): void {
+  try {
+    const { setLlamaSetting } = require(resolveFromRoot('backend', 'dist', 'db', 'sqlite-client'));
+    setLlamaSetting('last_active_model', fileName);
+  } catch (err) {
+    console.error('[llama] Failed to persist last active model:', err);
+  }
+}
+
+function loadLastActiveModel(): string | null {
+  try {
+    const { getLlamaSetting } = require(resolveFromRoot('backend', 'dist', 'db', 'sqlite-client'));
+    return getLlamaSetting('last_active_model');
+  } catch (err) {
+    console.error('[llama] Failed to load last active model:', err);
+    return null;
+  }
+}
+
 // ── Create window ────────────────────────────────────────────────────────────
 
 function createWindow(): void {
@@ -121,9 +235,15 @@ function createWindow(): void {
     return { action: 'deny' };
   });
 
+  mainWindow.webContents.on('console-message', (_e, level, message) => {
+    if (level >= 2) console.error('[renderer]', message);
+  });
+  mainWindow.webContents.on('did-fail-load', (_e, code, desc) => {
+    console.error('[renderer] Failed to load:', code, desc);
+  });
+
   if (isDev) {
     mainWindow.loadURL(FRONTEND_DEV_URL);
-    mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(resolveFromRoot('frontend', 'out', 'index.html'));
   }
@@ -140,6 +260,8 @@ app.whenReady().then(async () => {
     startFrontendDev();
   }
 
+  initializeLlamaManager();
+
   try {
     await waitForBackend();
   } catch (err) {
@@ -148,6 +270,7 @@ app.whenReady().then(async () => {
   }
 
   createWindow();
+  autoStartLlama();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -163,4 +286,16 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   backendProcess?.kill();
   frontendProcess?.kill();
+  if (unsubscribeLlamaState) {
+    unsubscribeLlamaState();
+    unsubscribeLlamaState = null;
+  }
+  if (llamaManager) {
+    llamaManager.stop().catch((err) => {
+      console.error('[llama] Error stopping llama-server during quit:', err);
+    });
+    llamaManager = null;
+  }
 });
+
+export { initializeLlamaManager, registerLlamaIpcHandlers, autoStartLlama, persistLastActiveModel, loadLastActiveModel };

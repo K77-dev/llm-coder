@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useChat } from '../../lib/hooks/useChat';
-import { listTree, readFile, TreeEntry } from '../../lib/api';
+import { listTree, readFile, getLlamaStatus, TreeEntry } from '../../lib/api';
 import { Message } from './Message';
 
 interface ChatInterfaceProps {
@@ -63,8 +63,28 @@ function getFileIconColor(name: string): string {
 export function ChatInterface({ compact }: ChatInterfaceProps) {
   const { messages, isLoading, error, sendMessage, clearMessages } = useChat();
   const [input, setInput] = useState('');
+  const [llmRunning, setLlmRunning] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const checkStatus = () => {
+      getLlamaStatus()
+        .then((s) => setLlmRunning(s.status === 'running'))
+        .catch(() => setLlmRunning(false));
+    };
+    checkStatus();
+    const interval = setInterval(checkStatus, 2000);
+    const handleModelChange = () => {
+      setLlmRunning(false);
+      checkStatus();
+    };
+    window.addEventListener('llm:model-changing', handleModelChange);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('llm:model-changing', handleModelChange);
+    };
+  }, []);
 
   // @ mention state
   const [attachedFiles, setAttachedFiles] = useState<FlatFile[]>([]);
@@ -174,7 +194,7 @@ export function ChatInterface({ compact }: ChatInterfaceProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() && attachedFiles.length === 0) return;
-    if (isLoading) return;
+    if (isLoading || !llmRunning) return;
 
     let msg = input.trim();
 
@@ -376,9 +396,10 @@ export function ChatInterface({ compact }: ChatInterfaceProps) {
                 value={input}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
-                placeholder="Pergunte algo... (@ para referenciar arquivos)"
+                placeholder={llmRunning ? "Pergunte algo... (@ para referenciar arquivos)" : "Selecione um modelo para iniciar..."}
                 rows={1}
-                className="w-full resize-none bg-[#3c3c3c] text-[#cccccc] placeholder-neutral-500 rounded px-3 py-2 text-[13px] focus:outline-none focus:ring-1 focus:ring-[#007acc] border border-[#3c3c3c] focus:border-[#007acc] min-h-[34px] max-h-24"
+                disabled={!llmRunning}
+                className="w-full resize-none bg-[#3c3c3c] text-[#cccccc] placeholder-neutral-500 rounded px-3 py-2 text-[13px] focus:outline-none focus:ring-1 focus:ring-[#007acc] border border-[#3c3c3c] focus:border-[#007acc] min-h-[34px] max-h-24 disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ height: 'auto' }}
                 onInput={(e) => {
                   const el = e.currentTarget;
@@ -389,7 +410,7 @@ export function ChatInterface({ compact }: ChatInterfaceProps) {
             </div>
             <button
               type="submit"
-              disabled={isLoading || (!input.trim() && attachedFiles.length === 0)}
+              disabled={!llmRunning || isLoading || (!input.trim() && attachedFiles.length === 0)}
               className="px-3 py-2 bg-[#0e639c] hover:bg-[#1177bb] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded text-[13px] font-medium transition-colors shrink-0"
             >
               {isLoading ? (
@@ -447,9 +468,10 @@ export function ChatInterface({ compact }: ChatInterfaceProps) {
               value={input}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder="Pergunte algo... (@ para referenciar arquivos)"
+              placeholder={llmRunning ? "Pergunte algo... (@ para referenciar arquivos)" : "Selecione um modelo para iniciar..."}
               rows={1}
-              className="w-full resize-none bg-slate-100 dark:bg-neutral-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-neutral-500 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[44px] max-h-32"
+              disabled={!llmRunning}
+              className="w-full resize-none bg-slate-100 dark:bg-neutral-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-neutral-500 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[44px] max-h-32 disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ height: 'auto' }}
               onInput={(e) => {
                 const el = e.currentTarget;
@@ -460,7 +482,7 @@ export function ChatInterface({ compact }: ChatInterfaceProps) {
           </div>
           <button
             type="submit"
-            disabled={isLoading || (!input.trim() && attachedFiles.length === 0)}
+            disabled={!llmRunning || isLoading || (!input.trim() && attachedFiles.length === 0)}
             className="px-4 py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-sm font-medium transition-colors"
           >
             {isLoading ? '...' : 'Enviar'}

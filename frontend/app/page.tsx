@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { FileExplorer } from '../components/FileExplorer';
 import { ChatInterface } from '../components/ChatInterface';
 import { DirectoryPicker } from '../components/DirectoryPicker';
+import { ModelSelector } from '../components/Sidebar/ModelSelector';
 import { useTheme } from '../components/ThemeProvider';
 import { checkHealth, indexDirectory, clearIndex } from '../lib/api';
 
@@ -76,11 +77,7 @@ export default function Home() {
     document.body.style.userSelect = 'none';
   };
 
-  const ollamaOk = health?.ollama?.available;
   const chunks = health?.database?.indexed_chunks || 0;
-  const ollamaModel = health?.ollama?.models?.[0] || '';
-  const llmModel = health?.config?.llmModel || '';
-  const embeddingModel = health?.config?.embeddingModel || '';
 
   return (
     <div className="flex flex-col h-screen bg-[#1e1e1e] text-white overflow-hidden">
@@ -154,30 +151,37 @@ export default function Home() {
         {/* Sidebar: File Explorer */}
         {sidebarVisible && (
           <>
-            <div style={{ width: sidebarWidth }} className="shrink-0 border-r border-[#1e1e1e]">
-              {projectDir ? (
-                <FileExplorer
-                  rootPath={projectDir}
-                  onFileSelect={handleFileSelect}
-                  selectedFile={activeFile}
-                />
-              ) : (
-                <div className="h-full bg-[#252526] flex flex-col items-center justify-center px-6 text-center">
-                  <svg className="w-12 h-12 text-neutral-600 mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
-                  </svg>
-                  <p className="text-neutral-400 text-sm mb-4">Nenhum projeto aberto</p>
-                  <button
-                    onClick={() => setShowPicker(true)}
-                    className="px-4 py-2 bg-[#0e639c] hover:bg-[#1177bb] text-white rounded text-sm transition-colors"
-                  >
-                    Abrir Pasta
-                  </button>
-                  <p className="text-neutral-600 text-xs mt-3">
-                    Selecione um diretorio para explorar e indexar
-                  </p>
-                </div>
-              )}
+            <div style={{ width: sidebarWidth }} className="shrink-0 border-r border-[#1e1e1e] flex flex-col bg-[#252526]">
+              {/* Model Selector */}
+              <div className="px-3 py-3 border-b border-[#1e1e1e]">
+                <ModelSelector collapsed={false} />
+              </div>
+              {/* File Explorer */}
+              <div className="flex-1 min-h-0 overflow-y-auto">
+                {projectDir ? (
+                  <FileExplorer
+                    rootPath={projectDir}
+                    onFileSelect={handleFileSelect}
+                    selectedFile={activeFile}
+                  />
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center px-6 text-center">
+                    <svg className="w-12 h-12 text-neutral-600 mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
+                    </svg>
+                    <p className="text-neutral-400 text-sm mb-4">Nenhum projeto aberto</p>
+                    <button
+                      onClick={() => setShowPicker(true)}
+                      className="px-4 py-2 bg-[#0e639c] hover:bg-[#1177bb] text-white rounded text-sm transition-colors"
+                    >
+                      Abrir Pasta
+                    </button>
+                    <p className="text-neutral-600 text-xs mt-3">
+                      Selecione um diretorio para explorar e indexar
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
             {/* Sidebar resize handle */}
             <div
@@ -216,37 +220,12 @@ export default function Home() {
               Indexando...
             </span>
           )}
-          {ollamaOk !== undefined && (
-            <span className="flex items-center gap-1">
-              <span className={`w-[6px] h-[6px] rounded-full ${ollamaOk ? 'bg-green-400' : 'bg-red-400'}`} />
-              Ollama
-              {ollamaModel && <span className="text-white/60">{ollamaModel}</span>}
-            </span>
-          )}
           {chunks > 0 && <span>{chunks} chunks indexados</span>}
         </div>
         <div className="flex items-center gap-4">
           {activeFile && (
             <span className="text-white/60">
               {getLanguageForStatus(activeFile)}
-            </span>
-          )}
-          {llmModel && (
-            <span className="flex items-center gap-1.5" title="Modelo LLM">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-70">
-                <path d="M12 2a10 10 0 100 20 10 10 0 000-20z" />
-                <path d="M12 8v4l3 3" />
-              </svg>
-              <span className="text-white/80 font-mono">{llmModel}</span>
-            </span>
-          )}
-          {embeddingModel && (
-            <span className="flex items-center gap-1.5 text-white/50" title="Modelo de embeddings">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
-              </svg>
-              <span className="font-mono">{embeddingModel}</span>
             </span>
           )}
           <span className="text-white/40">Code LLM v1.0</span>
