@@ -14,6 +14,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     selectModel(fileName: string): Promise<void> {
       return ipcRenderer.invoke('llama:select-model', fileName);
     },
+    restart(config: { port?: number; execPath?: string; modelsDir?: string }): Promise<void> {
+      return ipcRenderer.invoke('llama:restart', config);
+    },
     onStateChange(cb: (state: LlamaServerState) => void): () => void {
       const handler = (_event: Electron.IpcRendererEvent, state: LlamaServerState) => {
         cb(state);
@@ -22,6 +25,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
       return () => {
         ipcRenderer.removeListener('llama:state-changed', handler);
       };
+    },
+  },
+  dialog: {
+    selectDirectory(): Promise<string | null> {
+      return ipcRenderer.invoke('dialog:select-directory');
+    },
+    selectFile(): Promise<string | null> {
+      return ipcRenderer.invoke('dialog:select-file');
+    },
+    showConfirm(message: string): Promise<boolean> {
+      return ipcRenderer.invoke('dialog:show-confirm', message);
     },
   },
 });

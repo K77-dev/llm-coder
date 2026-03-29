@@ -270,6 +270,88 @@ describe('LlamaServerManager', () => {
       expect(manager.getState().activeModel).toBe('model-b.gguf');
       expect(manager.getState().pid).toBe(67890);
     });
+
+    it('should accept port as dynamic config parameter', async () => {
+      const { manager } = createManager(9999);
+      const mockProc1 = createMockProcess();
+      const mockProc2 = createMockProcess();
+      mockProc2.pid = 67890;
+      let spawnCount = 0;
+      mockSpawn.mockImplementation(() => {
+        spawnCount++;
+        return spawnCount === 1 ? mockProc1 : mockProc2;
+      });
+      mockHealthCheckSuccess();
+      await manager.start('/models/model-a.gguf');
+      expect(manager.getState().port).toBe(9999);
+      mockProc1.kill.mockImplementation((signal: string) => {
+        if (signal === 'SIGTERM') {
+          setTimeout(() => mockProc1.emit('exit', 0), 50);
+        }
+      });
+      const restartPromise = manager.restart('/models/model-a.gguf', { port: 7777 });
+      jest.advanceTimersByTime(100);
+      await restartPromise;
+      expect(manager.getState().port).toBe(7777);
+      expect(mockSpawn).toHaveBeenLastCalledWith(
+        '/usr/local/bin/llama-server',
+        ['-m', '/models/model-a.gguf', '--port', '7777'],
+        { stdio: ['ignore', 'pipe', 'pipe'] },
+      );
+    });
+
+    it('should accept execPath as dynamic config parameter', async () => {
+      const { manager } = createManager();
+      const mockProc1 = createMockProcess();
+      const mockProc2 = createMockProcess();
+      let spawnCount = 0;
+      mockSpawn.mockImplementation(() => {
+        spawnCount++;
+        return spawnCount === 1 ? mockProc1 : mockProc2;
+      });
+      mockHealthCheckSuccess();
+      await manager.start('/models/model-a.gguf');
+      mockProc1.kill.mockImplementation((signal: string) => {
+        if (signal === 'SIGTERM') {
+          setTimeout(() => mockProc1.emit('exit', 0), 50);
+        }
+      });
+      const restartPromise = manager.restart('/models/model-a.gguf', { execPath: '/new/path/llama-server' });
+      jest.advanceTimersByTime(100);
+      await restartPromise;
+      expect(mockSpawn).toHaveBeenLastCalledWith(
+        '/new/path/llama-server',
+        ['-m', '/models/model-a.gguf', '--port', '9999'],
+        { stdio: ['ignore', 'pipe', 'pipe'] },
+      );
+    });
+
+    it('should accept both port and execPath as dynamic config', async () => {
+      const { manager } = createManager(9999);
+      const mockProc1 = createMockProcess();
+      const mockProc2 = createMockProcess();
+      let spawnCount = 0;
+      mockSpawn.mockImplementation(() => {
+        spawnCount++;
+        return spawnCount === 1 ? mockProc1 : mockProc2;
+      });
+      mockHealthCheckSuccess();
+      await manager.start('/models/model-a.gguf');
+      mockProc1.kill.mockImplementation((signal: string) => {
+        if (signal === 'SIGTERM') {
+          setTimeout(() => mockProc1.emit('exit', 0), 50);
+        }
+      });
+      const restartPromise = manager.restart('/models/model-a.gguf', { port: 5555, execPath: '/custom/llama' });
+      jest.advanceTimersByTime(100);
+      await restartPromise;
+      expect(manager.getState().port).toBe(5555);
+      expect(mockSpawn).toHaveBeenLastCalledWith(
+        '/custom/llama',
+        ['-m', '/models/model-a.gguf', '--port', '5555'],
+        { stdio: ['ignore', 'pipe', 'pipe'] },
+      );
+    });
   });
 
   describe('activeModel stores filename only (BUG-01 regression)', () => {

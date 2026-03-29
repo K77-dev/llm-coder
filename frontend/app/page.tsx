@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { FileExplorer } from '../components/FileExplorer';
 import { ChatInterface } from '../components/ChatInterface';
 import { DirectoryPicker } from '../components/DirectoryPicker';
+import { SettingsModal } from '../components/SettingsModal';
 import { ModelSelector } from '../components/Sidebar/ModelSelector';
 import { useTheme } from '../components/ThemeProvider';
 import { checkHealth, indexDirectory, clearIndex } from '../lib/api';
@@ -14,6 +15,7 @@ export default function Home() {
   const [sidebarWidth, setSidebarWidth] = useState(260);
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [showPicker, setShowPicker] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const { theme, toggleTheme } = useTheme();
 
   const [health, setHealth] = useState<{ ollama?: { available: boolean; models: string[] }; config?: { llmModel: string; embeddingModel: string }; database?: { indexed_chunks: number }; indexing?: { running: boolean } } | null>(null);
@@ -137,9 +139,10 @@ export default function Home() {
 
           {/* Settings */}
           <button
-            onClick={() => setShowPicker(true)}
+            onClick={() => setShowSettings(true)}
             className="w-12 h-12 flex items-center justify-center text-neutral-500 hover:text-white transition-colors"
             title="Configuracoes"
+            data-testid="activity-settings-btn"
           >
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3" />
@@ -239,6 +242,9 @@ export default function Home() {
           onClose={() => setShowPicker(false)}
         />
       )}
+
+      {/* Settings modal */}
+      <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} />
     </div>
   );
 }

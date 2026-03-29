@@ -5,6 +5,7 @@ interface MockLlamaAPI {
   getModels: jest.Mock;
   getState: jest.Mock;
   selectModel: jest.Mock;
+  restart: jest.Mock;
   onStateChange: jest.Mock;
 }
 
@@ -51,10 +52,16 @@ function setupMockElectronAPI(overrides?: Partial<MockLlamaAPI>): MockLlamaAPI {
     getModels: jest.fn().mockResolvedValue(MOCK_MODELS),
     getState: jest.fn().mockResolvedValue(MOCK_STATE_RUNNING),
     selectModel: jest.fn().mockResolvedValue(undefined),
+    restart: jest.fn().mockResolvedValue(undefined),
     onStateChange: jest.fn().mockReturnValue(() => {}),
     ...overrides,
   };
-  window.electronAPI = { llama: mockLlama };
+  const mockDialog = {
+    selectDirectory: jest.fn().mockResolvedValue(null),
+    selectFile: jest.fn().mockResolvedValue(null),
+    showConfirm: jest.fn().mockResolvedValue(false),
+  };
+  window.electronAPI = { llama: mockLlama, dialog: mockDialog };
   return mockLlama;
 }
 

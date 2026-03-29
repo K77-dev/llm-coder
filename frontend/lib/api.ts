@@ -299,3 +299,34 @@ export async function getLlamaStatus(): Promise<LlamaStatusResponse> {
   const { data } = await api.get<LlamaStatusResponse>('/llama/status');
   return data;
 }
+
+// Llama settings API
+
+export interface LlamaSettings {
+  llamaModelsDir: string;
+  llamaServerPort: number;
+  llamaServerPath: string;
+  embeddingModel: string;
+  maxMemoryMb: number;
+  cacheTtl: number;
+  lruCacheSize: number;
+}
+
+export interface SaveSettingsResponse {
+  settings: LlamaSettings;
+  restartRequired: boolean;
+}
+
+export async function getLlamaSettings(): Promise<LlamaSettings> {
+  const { data } = await api.get<LlamaSettings>('/llama/settings');
+  return data;
+}
+
+export async function updateLlamaSettings(settings: LlamaSettings): Promise<SaveSettingsResponse> {
+  const { data } = await api.put<SaveSettingsResponse>('/llama/settings', settings);
+  return data;
+}
+
+export async function restartLlamaServer(): Promise<void> {
+  await api.post('/llama/restart');
+}

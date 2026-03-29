@@ -7,6 +7,11 @@ import { spawn, ChildProcess, execSync } from 'child_process';
 import { getLlamaSetting, setLlamaSetting } from '../../db/sqlite-client';
 import { logger } from '../../utils/logger';
 import axios from 'axios';
+import {
+  getSettings,
+  saveSettings,
+  llamaSettingsSchema,
+} from '../../llm/settings.service';
 
 let llamaProcess: ChildProcess | null = null;
 let serverStatus: 'stopped' | 'starting' | 'running' | 'error' = 'stopped';
@@ -71,6 +76,7 @@ function stopLlamaServer(): Promise<void> {
       try { proc.kill('SIGKILL'); } catch { /* already dead */ }
       resolve();
     }, 5000);
+    timeout.unref();
     proc.on('exit', () => {
       clearTimeout(timeout);
       resolve();
@@ -124,7 +130,7 @@ async function startLlamaServer(modelPath: string, port: string): Promise<void> 
           return;
         }
       } catch { /* not ready yet */ }
-      await new Promise((r) => setTimeout(r, 1000));
+      await new Promise((r) => { const t = setTimeout(r, 1000); t.unref(); });
     }
     serverStatus = 'error';
     logger.error({ component: 'llama-server' }, 'Health check timeout');
@@ -199,16 +205,68 @@ export async function getStatus(_req: Request, res: Response, next: NextFunction
 export function autoStartLlamaServer(): void {
   try {
     const lastModel = getLlamaSetting('last_active_model');
-    const modelsDir = process.env.LLAMA_MODELS_DIR;
-    if (!lastModel || !modelsDir) return;
+    if (!lastModel) return;
+    const settings = getSettings();
+    const modelsDir = settings.llamaModelsDir;
+    if (!modelsDir) return;
     const resolvedDir = modelsDir.replace('~', os.homedir());
     const modelPath = path.join(resolvedDir, lastModel);
     if (!fs.existsSync(modelPath)) return;
-    const port = process.env.LLAMA_SERVER_PORT || '8080';
-    logger.info({ component: 'llama-server', model: lastModel }, 'Auto-starting with last model');
+    const port = String(settings.llamaServerPort);
+    logger.info({ component: 'llama-server', model: lastModel, port }, 'Auto-starting with last model (config: SQLite → .env → defaults)');
     startLlamaServer(modelPath, port);
   } catch {
     logger.warn({ component: 'llama-server' }, 'Could not auto-start, DB may not be ready');
+  }
+}
+
+export async function getSettingsHandler(_req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const settings = getSettings();
+    res.json(settings);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateSettingsHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const result = llamaSettingsSchema.safeParse(req.body);
+    if (!result.success) {
+      res.status(400).json({ error: 'Invalid request', details: result.error.issues });
+      return;
+    }
+    const saveResult = saveSettings(result.data);
+    res.json(saveResult);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function restartServerHandler(_req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const settings = getSettings();
+    const port = String(settings.llamaServerPort);
+    const lastModel = getLlamaSetting('last_active_model');
+    logger.warn({ component: 'llama-server', port, model: lastModel }, 'Server restart requested via API');
+    if (!lastModel) {
+      res.status(400).json({ error: 'No active model selected. Select a model before restarting.' });
+      return;
+    }
+    const resolvedDir = settings.llamaModelsDir.replace('~', os.homedir());
+    const modelPath = path.join(resolvedDir, lastModel);
+    if (!fs.existsSync(modelPath)) {
+      res.status(404).json({ error: 'Active model file not found', model: lastModel });
+      return;
+    }
+    serverStatus = 'starting';
+    activeModelName = lastModel;
+    startLlamaServer(modelPath, port);
+    res.json({ success: true, status: 'starting', activeModel: lastModel, port: settings.llamaServerPort });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    logger.error({ component: 'llama-server', error: message }, 'Failed to restart server');
+    next(error);
   }
 }
 

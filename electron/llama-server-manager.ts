@@ -24,7 +24,7 @@ export class LlamaServerManager {
   private process: ChildProcess | null = null;
   private listeners: StateChangeCallback[] = [];
   private readonly logger: Logger;
-  private readonly execPath: string;
+  private execPath: string;
 
   constructor(options?: { logger?: Logger; execPath?: string; port?: number }) {
     const port = options?.port ?? (Number(process.env.LLAMA_SERVER_PORT) || DEFAULT_PORT);
@@ -110,8 +110,14 @@ export class LlamaServerManager {
     this.setState({ status: 'stopped', activeModel: null, pid: null, error: null });
   }
 
-  async restart(modelPath: string): Promise<void> {
+  async restart(modelPath: string, config?: { port?: number; execPath?: string }): Promise<void> {
     await this.stop();
+    if (config?.port !== undefined) {
+      this.state = { ...this.state, port: config.port };
+    }
+    if (config?.execPath !== undefined) {
+      this.execPath = config.execPath;
+    }
     await this.start(modelPath);
   }
 

@@ -1,5 +1,5 @@
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { app, BrowserWindow, shell, ipcMain } = require('electron') as typeof import('electron');
+const { app, BrowserWindow, shell, ipcMain, dialog } = require('electron') as typeof import('electron');
 import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
 import fs from 'fs';
@@ -180,6 +180,56 @@ function registerLlamaIpcHandlers(): void {
     const modelPath = path.join(modelsDir, fileName);
     await llamaManager.restart(modelPath);
     persistLastActiveModel(fileName);
+  });
+
+  ipcMain.handle('llama:restart', async (_event, config: { port?: number; execPath?: string; modelsDir?: string }) => {
+    if (!llamaManager) {
+      throw new Error('LlamaServerManager not initialized');
+    }
+    await llamaManager.stop();
+    llamaManager = new LlamaServerManager({
+      port: config.port,
+      execPath: config.execPath,
+    });
+    subscribeToLlamaStateChanges();
+    if (config.modelsDir) {
+      process.env.LLAMA_MODELS_DIR = config.modelsDir;
+    }
+    await autoStartLlama();
+  });
+
+  ipcMain.handle('dialog:select-directory', async () => {
+    if (!mainWindow) return null;
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openDirectory'],
+    });
+    if (result.canceled || result.filePaths.length === 0) {
+      return null;
+    }
+    return result.filePaths[0];
+  });
+
+  ipcMain.handle('dialog:select-file', async () => {
+    if (!mainWindow) return null;
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openFile'],
+    });
+    if (result.canceled || result.filePaths.length === 0) {
+      return null;
+    }
+    return result.filePaths[0];
+  });
+
+  ipcMain.handle('dialog:show-confirm', async (_event, message: string) => {
+    if (!mainWindow) return false;
+    const result = await dialog.showMessageBox(mainWindow, {
+      type: 'question',
+      buttons: ['Sim', 'Nao'],
+      defaultId: 0,
+      cancelId: 1,
+      message,
+    });
+    return result.response === 0;
   });
 }
 

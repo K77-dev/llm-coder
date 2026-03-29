@@ -1,0 +1,498 @@
+'use client';
+
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { getLlamaSettings, updateLlamaSettings, restartLlamaServer } from '../../lib/api';
+import type { LlamaSettings } from '../../lib/api';
+import { useToast } from '../../lib/hooks/useToast';
+
+const DEFAULT_SETTINGS: LlamaSettings = {
+  llamaModelsDir: '~/models',
+  llamaServerPort: 8080,
+  llamaServerPath: 'llama-server',
+  embeddingModel: 'nomic-embed-text',
+  maxMemoryMb: 13000,
+  cacheTtl: 3600,
+  lruCacheSize: 500,
+};
+
+const MIN_PORT = 1024;
+const MAX_PORT = 65535;
+
+interface SettingsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+interface ValidationErrors {
+  llamaServerPort?: string;
+  maxMemoryMb?: string;
+  cacheTtl?: string;
+  lruCacheSize?: string;
+}
+
+function isElectronAvailable(): boolean {
+  return typeof window !== 'undefined' && !!window.electronAPI?.dialog;
+}
+
+function validateSettings(settings: LlamaSettings): ValidationErrors {
+  const errors: ValidationErrors = {};
+  if (settings.llamaServerPort < MIN_PORT || settings.llamaServerPort > MAX_PORT) {
+    errors.llamaServerPort = `Port must be between ${MIN_PORT} and ${MAX_PORT}`;
+  }
+  if (!Number.isFinite(settings.llamaServerPort) || !Number.isInteger(settings.llamaServerPort)) {
+    errors.llamaServerPort = 'Port must be a valid integer';
+  }
+  if (settings.maxMemoryMb <= 0) {
+    errors.maxMemoryMb = 'Max memory must be greater than 0';
+  }
+  if (settings.cacheTtl <= 0) {
+    errors.cacheTtl = 'Cache TTL must be greater than 0';
+  }
+  if (settings.lruCacheSize <= 0) {
+    errors.lruCacheSize = 'LRU cache size must be greater than 0';
+  }
+  return errors;
+}
+
+export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
+  const [settings, setSettings] = useState<LlamaSettings>(DEFAULT_SETTINGS);
+  const [errors, setErrors] = useState<ValidationErrors>({});
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const firstFocusableRef = useRef<HTMLButtonElement>(null);
+  const { showToast } = useToast();
+
+  const loadSettings = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getLlamaSettings();
+      setSettings(data);
+      setErrors({});
+    } catch {
+      showToast({ message: 'Failed to load settings', type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  }, [showToast]);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadSettings();
+    }
+  }, [isOpen, loadSettings]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (event.key === 'Tab') {
+        trapFocus(event);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  useEffect(() => {
+    if (isOpen) {
+      firstFocusableRef.current?.focus();
+    }
+  }, [isOpen, loading]);
+
+  const trapFocus = (event: KeyboardEvent) => {
+    const modal = modalRef.current;
+    if (!modal) return;
+    const focusableElements = modal.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    if (focusableElements.length === 0) return;
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+    if (event.shiftKey) {
+      if (document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      }
+    } else {
+      if (document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    }
+  };
+
+  const handleFieldChange = (field: keyof LlamaSettings, value: string) => {
+    const numericFields: (keyof LlamaSettings)[] = [
+      'llamaServerPort',
+      'maxMemoryMb',
+      'cacheTtl',
+      'lruCacheSize',
+    ];
+    if (numericFields.includes(field)) {
+      const numValue = value === '' ? 0 : Number(value);
+      setSettings((prev) => ({ ...prev, [field]: numValue }));
+    } else {
+      setSettings((prev) => ({ ...prev, [field]: value }));
+    }
+    setErrors((prev) => ({ ...prev, [field]: undefined }));
+  };
+
+  const handleSelectDirectory = async (field: 'llamaModelsDir') => {
+    if (!isElectronAvailable()) return;
+    const selected = await window.electronAPI!.dialog.selectDirectory();
+    if (selected) {
+      setSettings((prev) => ({ ...prev, [field]: selected }));
+    }
+  };
+
+  const handleSelectFile = async (field: 'llamaServerPath') => {
+    if (!isElectronAvailable()) return;
+    const selected = await window.electronAPI!.dialog.selectFile();
+    if (selected) {
+      setSettings((prev) => ({ ...prev, [field]: selected }));
+    }
+  };
+
+  const handleSave = async () => {
+    const validationErrors = validateSettings(settings);
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+    setSaving(true);
+    try {
+      const result = await updateLlamaSettings(settings);
+      if (result.restartRequired) {
+        const confirmed = await confirmRestart();
+        if (confirmed) {
+          try {
+            if (isElectronAvailable() && window.electronAPI?.llama?.restart) {
+              await window.electronAPI.llama.restart({
+                port: settings.llamaServerPort,
+                execPath: settings.llamaServerPath,
+                modelsDir: settings.llamaModelsDir,
+              });
+            } else {
+              await restartLlamaServer();
+            }
+            showToast({ message: 'Settings saved. Server restarting...', type: 'success' });
+          } catch {
+            showToast({ message: 'Settings saved but server restart failed', type: 'error' });
+          }
+        } else {
+          showToast({ message: 'Settings saved. Restart required on next startup.', type: 'success' });
+        }
+      } else {
+        showToast({ message: 'Settings saved successfully', type: 'success' });
+      }
+      onClose();
+    } catch {
+      showToast({ message: 'Failed to save settings', type: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const confirmRestart = async (): Promise<boolean> => {
+    const message = 'Server configuration changed. Restart the LLM server now? Active connections will be interrupted.';
+    if (isElectronAvailable() && window.electronAPI?.dialog?.showConfirm) {
+      return window.electronAPI.dialog.showConfirm(message);
+    }
+    return window.confirm(message);
+  };
+
+  if (!isOpen) return null;
+
+  const hasElectron = isElectronAvailable();
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      aria-label="LLM Settings"
+    >
+      {/* Overlay */}
+      <div
+        className="absolute inset-0 bg-black/50"
+        onClick={onClose}
+        aria-hidden="true"
+        data-testid="settings-overlay"
+      />
+
+      {/* Modal */}
+      <div
+        ref={modalRef}
+        className="relative z-10 w-full max-w-lg max-h-[85vh] bg-white dark:bg-neutral-900 rounded-xl shadow-2xl flex flex-col border border-slate-200 dark:border-neutral-700"
+        data-testid="settings-modal"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-neutral-700">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+            LLM Settings
+          </h2>
+          <button
+            ref={firstFocusableRef}
+            onClick={onClose}
+            className="text-slate-400 dark:text-neutral-500 hover:text-slate-600 dark:hover:text-neutral-300 transition-colors"
+            aria-label="Close settings"
+            data-testid="settings-close-btn"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
+          {loading ? (
+            <div className="flex items-center justify-center py-8" data-testid="settings-loading">
+              <span className="text-sm text-slate-400 dark:text-neutral-500">Loading settings...</span>
+            </div>
+          ) : (
+            <>
+              {/* Section: LLM Server */}
+              <section data-testid="section-llm-server">
+                <h3 className="text-sm font-medium text-slate-700 dark:text-neutral-300 mb-3">
+                  LLM Server
+                </h3>
+                <div className="space-y-3">
+                  <FieldGroup
+                    label="Models Directory"
+                    htmlFor="llamaModelsDir"
+                    error={undefined}
+                  >
+                    <div className="flex gap-2">
+                      <input
+                        id="llamaModelsDir"
+                        type="text"
+                        value={settings.llamaModelsDir}
+                        onChange={(e) => handleFieldChange('llamaModelsDir', e.target.value)}
+                        placeholder={DEFAULT_SETTINGS.llamaModelsDir}
+                        className={inputClasses()}
+                      />
+                      {hasElectron && (
+                        <button
+                          onClick={() => handleSelectDirectory('llamaModelsDir')}
+                          className={filePickerBtnClasses}
+                          title="Browse for directory"
+                          data-testid="picker-llamaModelsDir"
+                          type="button"
+                        >
+                          Browse
+                        </button>
+                      )}
+                    </div>
+                  </FieldGroup>
+
+                  <FieldGroup
+                    label="Server Port"
+                    htmlFor="llamaServerPort"
+                    error={errors.llamaServerPort}
+                  >
+                    <input
+                      id="llamaServerPort"
+                      type="number"
+                      min={MIN_PORT}
+                      max={MAX_PORT}
+                      value={settings.llamaServerPort || ''}
+                      onChange={(e) => handleFieldChange('llamaServerPort', e.target.value)}
+                      placeholder={String(DEFAULT_SETTINGS.llamaServerPort)}
+                      className={inputClasses(errors.llamaServerPort)}
+                      aria-describedby={errors.llamaServerPort ? 'llamaServerPort-error' : undefined}
+                      aria-invalid={!!errors.llamaServerPort}
+                    />
+                  </FieldGroup>
+
+                  <FieldGroup
+                    label="Server Executable Path"
+                    htmlFor="llamaServerPath"
+                    error={undefined}
+                  >
+                    <div className="flex gap-2">
+                      <input
+                        id="llamaServerPath"
+                        type="text"
+                        value={settings.llamaServerPath}
+                        onChange={(e) => handleFieldChange('llamaServerPath', e.target.value)}
+                        placeholder={DEFAULT_SETTINGS.llamaServerPath}
+                        className={inputClasses()}
+                      />
+                      {hasElectron && (
+                        <button
+                          onClick={() => handleSelectFile('llamaServerPath')}
+                          className={filePickerBtnClasses}
+                          title="Browse for file"
+                          data-testid="picker-llamaServerPath"
+                          type="button"
+                        >
+                          Browse
+                        </button>
+                      )}
+                    </div>
+                  </FieldGroup>
+                </div>
+              </section>
+
+              {/* Section: Embedding Model */}
+              <section data-testid="section-embedding">
+                <h3 className="text-sm font-medium text-slate-700 dark:text-neutral-300 mb-3">
+                  Embedding Model
+                </h3>
+                <div className="space-y-3">
+                  <FieldGroup
+                    label="Model Name"
+                    htmlFor="embeddingModel"
+                    error={undefined}
+                  >
+                    <input
+                      id="embeddingModel"
+                      type="text"
+                      value={settings.embeddingModel}
+                      onChange={(e) => handleFieldChange('embeddingModel', e.target.value)}
+                      placeholder={DEFAULT_SETTINGS.embeddingModel}
+                      className={inputClasses()}
+                    />
+                  </FieldGroup>
+                </div>
+              </section>
+
+              {/* Section: Cache & Performance */}
+              <section data-testid="section-cache">
+                <h3 className="text-sm font-medium text-slate-700 dark:text-neutral-300 mb-3">
+                  Cache & Performance
+                </h3>
+                <div className="space-y-3">
+                  <FieldGroup
+                    label="Max Memory (MB)"
+                    htmlFor="maxMemoryMb"
+                    error={errors.maxMemoryMb}
+                  >
+                    <input
+                      id="maxMemoryMb"
+                      type="number"
+                      min={1}
+                      value={settings.maxMemoryMb || ''}
+                      onChange={(e) => handleFieldChange('maxMemoryMb', e.target.value)}
+                      placeholder={String(DEFAULT_SETTINGS.maxMemoryMb)}
+                      className={inputClasses(errors.maxMemoryMb)}
+                      aria-describedby={errors.maxMemoryMb ? 'maxMemoryMb-error' : undefined}
+                      aria-invalid={!!errors.maxMemoryMb}
+                    />
+                  </FieldGroup>
+
+                  <FieldGroup
+                    label="Cache TTL (seconds)"
+                    htmlFor="cacheTtl"
+                    error={errors.cacheTtl}
+                  >
+                    <input
+                      id="cacheTtl"
+                      type="number"
+                      min={1}
+                      value={settings.cacheTtl || ''}
+                      onChange={(e) => handleFieldChange('cacheTtl', e.target.value)}
+                      placeholder={String(DEFAULT_SETTINGS.cacheTtl)}
+                      className={inputClasses(errors.cacheTtl)}
+                      aria-describedby={errors.cacheTtl ? 'cacheTtl-error' : undefined}
+                      aria-invalid={!!errors.cacheTtl}
+                    />
+                  </FieldGroup>
+
+                  <FieldGroup
+                    label="LRU Cache Size"
+                    htmlFor="lruCacheSize"
+                    error={errors.lruCacheSize}
+                  >
+                    <input
+                      id="lruCacheSize"
+                      type="number"
+                      min={1}
+                      value={settings.lruCacheSize || ''}
+                      onChange={(e) => handleFieldChange('lruCacheSize', e.target.value)}
+                      placeholder={String(DEFAULT_SETTINGS.lruCacheSize)}
+                      className={inputClasses(errors.lruCacheSize)}
+                      aria-describedby={errors.lruCacheSize ? 'lruCacheSize-error' : undefined}
+                      aria-invalid={!!errors.lruCacheSize}
+                    />
+                  </FieldGroup>
+                </div>
+              </section>
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-200 dark:border-neutral-700">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-neutral-400 hover:text-slate-800 dark:hover:text-neutral-200 transition-colors rounded-lg hover:bg-slate-100 dark:hover:bg-neutral-800"
+            data-testid="settings-cancel-btn"
+            type="button"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving || loading}
+            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors rounded-lg"
+            data-testid="settings-save-btn"
+            type="button"
+          >
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface FieldGroupProps {
+  label: string;
+  htmlFor: string;
+  error?: string;
+  children: React.ReactNode;
+}
+
+function FieldGroup({ label, htmlFor, error, children }: FieldGroupProps) {
+  const errorId = `${htmlFor}-error`;
+  return (
+    <div>
+      <label
+        htmlFor={htmlFor}
+        className="block text-xs font-medium text-slate-500 dark:text-neutral-400 mb-1"
+      >
+        {label}
+      </label>
+      {children}
+      {error && (
+        <p
+          id={errorId}
+          role="alert"
+          aria-live="assertive"
+          className="mt-1 text-xs text-red-500"
+          data-testid={`error-${htmlFor}`}
+        >
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function inputClasses(error?: string): string {
+  const base = 'w-full text-sm bg-slate-100 dark:bg-neutral-800 text-slate-800 dark:text-neutral-200 placeholder-slate-400 dark:placeholder-neutral-500 rounded-lg px-3 py-2 focus:outline-none focus:ring-1';
+  const ring = error
+    ? 'ring-1 ring-red-500 focus:ring-red-500'
+    : 'focus:ring-blue-500';
+  return `${base} ${ring}`;
+}
+
+const filePickerBtnClasses = 'shrink-0 px-3 py-2 text-sm font-medium text-slate-600 dark:text-neutral-300 bg-slate-200 dark:bg-neutral-700 hover:bg-slate-300 dark:hover:bg-neutral-600 rounded-lg transition-colors';
+
+export type { SettingsModalProps };
