@@ -238,13 +238,27 @@ async function* streamLlamaServerResponse(
 
 export async function generateEmbedding(text: string): Promise<number[]> {
   const runtime = await detectRuntime();
-  if (runtime === 'llama-server') {
-    throw new Error('Embeddings are not supported with llama-server. Use Ollama for embedding generation.');
-  }
   if (runtime === 'unavailable') {
     throw new Error('No LLM runtime available for embeddings');
   }
 
+  if (runtime === 'llama-server') {
+    // Use llama-server embeddings endpoint
+    try {
+      const response = await axios.post(`${LLM_BASE_URL}/embedding`, {
+        content: text,
+      });
+      const data = response.data as { embedding: number[] };
+      return data.embedding;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 501) {
+        throw new Error('Embeddings are not supported. Start llama-server with --embeddings flag');
+      }
+      throw error;
+    }
+  }
+
+  // Use Ollama embeddings endpoint
   const response = await axios.post(`${LLM_BASE_URL}/api/embeddings`, {
     model: DEFAULT_MODEL,
     prompt: text,

@@ -62,7 +62,7 @@ export class LlamaServerManager {
     this.setState({ status: 'starting', activeModel: modelFileName, error: null });
     this.logger.info({ component: 'llama-server', modelPath, port: this.state.port }, 'Starting llama-server');
     try {
-      this.process = spawn(this.execPath, ['-m', modelPath, '--port', String(this.state.port)], {
+      this.process = spawn(this.execPath, ['-m', modelPath, '--port', String(this.state.port), '--embeddings'], {
         stdio: ['ignore', 'pipe', 'pipe'],
       });
       this.state.pid = this.process.pid ?? null;
