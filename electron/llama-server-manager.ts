@@ -249,7 +249,8 @@ export class LlamaServerManager {
   private async killOrphanProcess(): Promise<void> {
     try {
       const port = this.state.port;
-      const output = execSync(`lsof -ti tcp:${port} 2>/dev/null`, { encoding: 'utf-8' }).trim();
+      // Find llama-server processes listening on this port
+      const output = execSync(`lsof -i tcp:${port} 2>/dev/null | grep LISTEN | awk '{print $2}'`, { encoding: 'utf-8' }).trim();
       if (output) {
         const pids = output.split('\n').map((p) => p.trim()).filter(Boolean);
         for (const pid of pids) {
@@ -260,6 +261,8 @@ export class LlamaServerManager {
             // Process may already be dead
           }
         }
+        // Wait for port to be released
+        await new Promise(r => setTimeout(r, 1000));
       }
     } catch {
       // lsof returns non-zero if no process found — expected

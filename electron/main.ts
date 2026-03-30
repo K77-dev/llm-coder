@@ -62,6 +62,7 @@ function startBackend(): void {
     env: {
       ...process.env,
       ...(useElectronNode ? { ELECTRON_RUN_AS_NODE: '1' } : {}),
+      ELECTRON_APP: '1',
       NODE_ENV: isDev ? 'development' : 'production',
       PORT: String(BACKEND_PORT),
       DOTENV_CONFIG_PATH: envFile,
@@ -338,11 +339,15 @@ function loadSetting(key: string): string | null {
 }
 
 function persistLastActiveModel(fileName: string): void {
+  // Write directly to DB via sqlite3 CLI (avoids Node native module issues in Electron)
   try {
-    const { setLlamaSetting } = require(resolveFromRoot('backend', 'dist', 'db', 'sqlite-client'));
-    setLlamaSetting('last_active_model', fileName);
+    const dbPath = path.join(require('os').homedir(), '.code-llm', 'vectors.db');
+    require('child_process').execSync(
+      `sqlite3 "${dbPath}" "INSERT OR REPLACE INTO llama_settings (key, value, updated_at) VALUES ('last_active_model', '${fileName}', datetime('now'));"`,
+      { timeout: 3000 }
+    );
   } catch (err) {
-    console.error('[llama] Failed to persist last active model:', err);
+    console.error('[llama] Failed to persist last active model:', err instanceof Error ? err.message : err);
   }
 }
 

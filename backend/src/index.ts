@@ -48,7 +48,11 @@ async function start() {
     });
     getService().setIndexer(indexer);
 
-    autoStartLlamaServer();
+    // Only auto-start llama-server when NOT running under Electron
+    // (Electron manages llama-server via LlamaServerManager)
+    if (!process.env.ELECTRON_RUN_AS_NODE && !process.env.ELECTRON_APP) {
+      autoStartLlamaServer();
+    }
     app.listen(PORT, () => {
       logger.info({ port: PORT }, 'Code LLM Backend started');
     });
