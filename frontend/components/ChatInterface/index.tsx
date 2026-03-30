@@ -63,7 +63,7 @@ function getFileIconColor(name: string): string {
 }
 
 export function ChatInterface({ compact }: ChatInterfaceProps) {
-  const { messages, isLoading, error, sendMessage, clearMessages } = useChat();
+  const { messages, isLoading, error, sendMessage, clearMessages, abort } = useChat();
   const selectedIds = useCollectionStore((state) => state.selectedIds);
   const activeCollectionCount = selectedIds.size;
   const ragMinScore = useRagSettingsStore((state) => state.minScore);
@@ -435,22 +435,31 @@ export function ChatInterface({ compact }: ChatInterfaceProps) {
                 }}
               />
             </div>
-            <button
-              type="submit"
-              disabled={!llmRunning || isLoading || (!input.trim() && attachedFiles.length === 0)}
-              className="px-3 py-2 bg-[#0e639c] hover:bg-[#1177bb] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded text-[13px] font-medium transition-colors shrink-0"
-            >
-              {isLoading ? (
-                <svg className="animate-spin w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
-                  <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 1.5a5.5 5.5 0 110 11 5.5 5.5 0 010-11z" opacity="0.25" />
-                  <path d="M8 1a7 7 0 017 7h-1.5A5.5 5.5 0 008 2.5V1z" />
+            {isLoading ? (
+              <button
+                type="button"
+                onClick={abort}
+                className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded text-[13px] font-medium transition-colors shrink-0"
+                title="Stop generation"
+                aria-label="Stop generation"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="6" y="6" width="12" height="12" rx="2" />
                 </svg>
-              ) : (
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={!llmRunning || (!input.trim() && attachedFiles.length === 0)}
+                className="px-3 py-2 bg-[#0e639c] hover:bg-[#1177bb] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded text-[13px] font-medium transition-colors shrink-0"
+                title="Send message"
+                aria-label="Send message"
+              >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
                 </svg>
-              )}
-            </button>
+              </button>
+            )}
           </form>
         </div>
       </div>
@@ -510,13 +519,25 @@ export function ChatInterface({ compact }: ChatInterfaceProps) {
               }}
             />
           </div>
-          <button
-            type="submit"
-            disabled={!llmRunning || isLoading || (!input.trim() && attachedFiles.length === 0)}
-            className="px-4 py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-sm font-medium transition-colors"
-          >
-            {isLoading ? '...' : 'Enviar'}
-          </button>
+          {isLoading ? (
+            <button
+              type="button"
+              onClick={abort}
+              className="px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-medium transition-colors"
+              title="Stop generation"
+              aria-label="Stop generation"
+            >
+              Parar
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={!llmRunning || (!input.trim() && attachedFiles.length === 0)}
+              className="px-4 py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-sm font-medium transition-colors"
+            >
+              Enviar
+            </button>
+          )}
         </form>
         <div className="mt-2">
           <span className="text-xs text-slate-400 dark:text-neutral-500">Enter para enviar {'\u00B7'} Shift+Enter para nova linha {'\u00B7'} @ para referenciar arquivos</span>
