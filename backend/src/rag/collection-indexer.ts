@@ -25,6 +25,8 @@ interface IndexingState {
   error?: string;
   total: number;
   indexed: number;
+  totalChunks: number;
+  indexedChunks: number;
 }
 
 export class CollectionIndexer {
@@ -56,7 +58,11 @@ export class CollectionIndexer {
 
   getProgress(collectionId: number): number {
     const state = this.indexingStates.get(collectionId);
-    if (!state || state.total === 0) return 0;
+    if (!state) return 0;
+    if (state.totalChunks > 0) {
+      return Math.round((state.indexedChunks / state.totalChunks) * 100);
+    }
+    if (state.total === 0) return 0;
     return Math.round((state.indexed / state.total) * 100);
   }
 
@@ -116,7 +122,7 @@ export class CollectionIndexer {
     files: CollectionFileInput[],
     repoBasePaths?: Map<string, string>
   ): Promise<void> {
-    this.indexingStates.set(collectionId, { status: 'indexing', total: files.length, indexed: 0 });
+    this.indexingStates.set(collectionId, { status: 'indexing', total: files.length, indexed: 0, totalChunks: 0, indexedChunks: 0 });
     logger.info(
       { collectionId, fileCount: files.length },
       'Starting collection indexing'
@@ -124,14 +130,16 @@ export class CollectionIndexer {
     try {
       for (let i = 0; i < files.length; i++) {
         await this.indexSingleFile(collectionId, files[i], repoBasePaths);
-        this.indexingStates.set(collectionId, { status: 'indexing', total: files.length, indexed: i + 1 });
+        const current = this.indexingStates.get(collectionId)!;
+        this.indexingStates.set(collectionId, { ...current, indexed: i + 1 });
       }
-      this.indexingStates.set(collectionId, { status: 'done', total: files.length, indexed: files.length });
+      const final = this.indexingStates.get(collectionId)!;
+      this.indexingStates.set(collectionId, { ...final, status: 'done', indexed: files.length });
       logger.info({ collectionId }, 'Collection indexing complete');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       const current = this.indexingStates.get(collectionId);
-      this.indexingStates.set(collectionId, { status: 'error', error: message, total: current?.total ?? 0, indexed: current?.indexed ?? 0 });
+      this.indexingStates.set(collectionId, { status: 'error', error: message, total: current?.total ?? 0, indexed: current?.indexed ?? 0, totalChunks: current?.totalChunks ?? 0, indexedChunks: current?.indexedChunks ?? 0 });
       logger.error({ collectionId, error: message }, 'Collection indexing failed');
       throw err;
     }
@@ -177,8 +185,16 @@ export class CollectionIndexer {
       return;
     }
     const chunks = chunkFile(repo, filePath, content);
+    const current = this.indexingStates.get(collectionId);
+    if (current) {
+      this.indexingStates.set(collectionId, { ...current, totalChunks: current.totalChunks + chunks.length });
+    }
     for (const chunk of chunks) {
       await this.upsertChunk(chunk);
+      const state = this.indexingStates.get(collectionId);
+      if (state) {
+        this.indexingStates.set(collectionId, { ...state, indexedChunks: state.indexedChunks + 1 });
+      }
     }
     this.updateIndexedAt(collectionId, filePath);
     logger.debug(
