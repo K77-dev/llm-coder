@@ -17,6 +17,8 @@ const DEFAULT_SETTINGS: api.LlamaSettings = {
   llamaServerPort: 8080,
   llamaServerPath: 'llama-server',
   embeddingModel: 'nomic-embed-text',
+  contextSize: 8192,
+  batchSize: 8192,
   maxMemoryMb: 13000,
   cacheTtl: 3600,
   lruCacheSize: 500,

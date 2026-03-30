@@ -36,6 +36,8 @@ const DEFAULT_SETTINGS: LlamaSettings = {
   llamaServerPort: 8080,
   llamaServerPath: 'llama-server',
   embeddingModel: 'nomic-embed-text',
+  contextSize: 8192,
+  batchSize: 8192,
   maxMemoryMb: 13000,
   cacheTtl: 3600,
   lruCacheSize: 500,
@@ -51,6 +53,8 @@ interface SettingsModalProps {
 
 interface ValidationErrors {
   llamaServerPort?: string;
+  contextSize?: string;
+  batchSize?: string;
   maxMemoryMb?: string;
   cacheTtl?: string;
   lruCacheSize?: string;
@@ -67,6 +71,12 @@ function validateSettings(settings: LlamaSettings): ValidationErrors {
   }
   if (!Number.isFinite(settings.llamaServerPort) || !Number.isInteger(settings.llamaServerPort)) {
     errors.llamaServerPort = 'Port must be a valid integer';
+  }
+  if (settings.contextSize < 0 || settings.contextSize > 16384) {
+    errors.contextSize = 'Context size must be between 0 and 16384';
+  }
+  if (settings.batchSize < 0 || settings.batchSize > 16384) {
+    errors.batchSize = 'Batch size must be between 0 and 16384';
   }
   if (settings.maxMemoryMb <= 0) {
     errors.maxMemoryMb = 'Max memory must be greater than 0';
@@ -161,6 +171,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const handleFieldChange = (field: keyof LlamaSettings, value: string) => {
     const numericFields: (keyof LlamaSettings)[] = [
       'llamaServerPort',
+      'contextSize',
+      'batchSize',
       'maxMemoryMb',
       'cacheTtl',
       'lruCacheSize',
@@ -369,6 +381,30 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       )}
                     </div>
                   </FieldGroup>
+
+                  <SliderField
+                    label="Context Size (tokens)"
+                    id="contextSize"
+                    value={settings.contextSize}
+                    min={0}
+                    max={16384}
+                    step={1024}
+                    marks={[0, 4096, 8192, 12288, 16384]}
+                    onChange={(v) => handleFieldChange('contextSize', String(v))}
+                    error={errors.contextSize}
+                  />
+
+                  <SliderField
+                    label="Batch Size (tokens)"
+                    id="batchSize"
+                    value={settings.batchSize}
+                    min={0}
+                    max={16384}
+                    step={1024}
+                    marks={[0, 4096, 8192, 12288, 16384]}
+                    onChange={(v) => handleFieldChange('batchSize', String(v))}
+                    error={errors.batchSize}
+                  />
                 </div>
               </section>
 
@@ -556,6 +592,51 @@ function FieldGroup({ label, htmlFor, error, children }: FieldGroupProps) {
           className="mt-1 text-xs text-red-500"
           data-testid={`error-${htmlFor}`}
         >
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+interface SliderFieldProps {
+  label: string;
+  id: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  marks: number[];
+  onChange: (value: number) => void;
+  error?: string;
+}
+
+function SliderField({ label, id, value, min, max, step, marks, onChange, error }: SliderFieldProps) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <label htmlFor={id} className="text-xs font-medium text-slate-500 dark:text-neutral-400">
+          {label}
+        </label>
+        <span className="text-xs font-mono text-slate-700 dark:text-neutral-300">{value}</span>
+      </div>
+      <input
+        id={id}
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(parseInt(e.target.value, 10))}
+        className="w-full h-1.5 bg-slate-200 dark:bg-neutral-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+      />
+      <div className="flex justify-between text-[10px] text-slate-400 dark:text-neutral-500 mt-0.5">
+        {marks.map((m) => (
+          <span key={m}>{m}</span>
+        ))}
+      </div>
+      {error && (
+        <p id={`${id}-error`} role="alert" className="mt-1 text-xs text-red-500">
           {error}
         </p>
       )}

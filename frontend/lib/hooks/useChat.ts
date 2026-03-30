@@ -159,7 +159,7 @@ export function useChat() {
 
   const sendMessage = useCallback(async (
     content: string,
-    options?: { model?: 'local' | 'claude' | 'auto'; useStream?: boolean }
+    options?: { model?: 'local' | 'claude' | 'auto'; useStream?: boolean; collectionIds?: number[]; ragMinScore?: number; ragTopK?: number }
   ) => {
     if (isLoading) return;
 
@@ -197,6 +197,9 @@ export function useChat() {
           model: options?.model || 'auto',
           stream: true,
           projectDir,
+          collectionIds: options?.collectionIds,
+          ragMinScore: options?.ragMinScore,
+          ragTopK: options?.ragTopK,
         })) {
           if (abortRef.current) break;
           fullContent += chunk;
@@ -235,6 +238,9 @@ export function useChat() {
           history,
           model: options?.model || 'auto',
           projectDir,
+          collectionIds: options?.collectionIds,
+          ragMinScore: options?.ragMinScore,
+          ragTopK: options?.ragTopK,
         });
 
         setMessages((prev) => [

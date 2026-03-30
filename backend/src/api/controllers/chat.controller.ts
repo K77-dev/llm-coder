@@ -20,6 +20,8 @@ const chatSchema = z.object({
         language: z.string().optional(),
     }).optional(),
     collectionIds: z.array(z.number().int().positive()).optional(),
+    ragMinScore: z.number().min(0).max(1).optional(),
+    ragTopK: z.number().int().min(1).max(50).optional(),
     stream: z.boolean().optional().default(false),
     projectDir: z.string().optional(),
 });
@@ -27,15 +29,38 @@ const chatSchema = z.object({
 export async function chat(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
         const body = chatSchema.parse(req.body);
-        const { message, model, history, filter, collectionIds, stream, projectDir } = body;
+        const { message, model, history, filter, collectionIds, ragMinScore, ragTopK, stream, projectDir } = body;
 
         // RAG: Search for relevant code context filtered by selected collections
+        logger.info({ collectionIds, ragMinScore, ragTopK }, 'Chat request RAG params received');
         const collectionRestricted = !!(collectionIds && collectionIds.length > 0);
-        const searchFilter = { ...filter, collectionIds, skipScoreFilter: collectionRestricted };
-        const topK = collectionRestricted ? 20 : 5;
+        const searchFilter = {
+            ...filter,
+            collectionIds,
+            skipScoreFilter: ragMinScore === 0,
+            minScore: ragMinScore,
+        };
+        const topK = ragTopK ?? (collectionRestricted ? 20 : 5);
         const searchResults = await searchSimilar(message, topK, searchFilter).catch(() => []);
-        const ragContext = searchResults.length > 0
-            ? formatContextFromResults(searchResults)
+
+        // Trim RAG context to fit within local LLM context window
+        // Reserve ~1500 tokens for system prompt, message, history and response
+        const MAX_CONTEXT_TOKENS = 2500;
+        let trimmedResults = searchResults;
+        if (searchResults.length > 0) {
+            let totalTokens = 0;
+            const fitting = [];
+            for (const r of searchResults) {
+                const chunkTokens = estimateTokenCount(r.code + (r.summary || ''));
+                if (totalTokens + chunkTokens > MAX_CONTEXT_TOKENS && fitting.length > 0) break;
+                totalTokens += chunkTokens;
+                fitting.push(r);
+            }
+            trimmedResults = fitting;
+        }
+
+        const ragContext = trimmedResults.length > 0
+            ? formatContextFromResults(trimmedResults)
             : undefined;
 
         const prompt = buildChatPrompt(message, history, ragContext, collectionRestricted);
@@ -53,7 +78,7 @@ export async function chat(req: Request, res: Response, next: NextFunction): Pro
 
         logger.info({
             model: useClaudeApi ? 'claude' : 'ollama',
-            contextChunks: searchResults.length,
+            contextChunks: trimmedResults.length,
             tokenCount,
             stream,
         }, 'Processing chat request');
@@ -95,7 +120,7 @@ export async function chat(req: Request, res: Response, next: NextFunction): Pro
             searchFiles: parsed.searchFiles,
             commands: parsed.commands,
             model: useClaudeApi ? 'claude' : 'local',
-            sources: searchResults.map((r) => ({
+            sources: trimmedResults.map((r) => ({
                 repo: r.repo,
                 filePath: r.filePath,
                 language: r.language,

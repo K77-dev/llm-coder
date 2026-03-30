@@ -13,6 +13,7 @@ import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 import { ContextMenu } from './ContextMenu';
 import { IndexingStatusIndicator } from './IndexingStatusIndicator';
 import { ScopeBadge } from './ScopeBadge';
+import { RagSettingsModal } from './RagSettingsModal';
 import { getProjectDir } from './get-project-dir';
 
 const CRUD_ERROR_DISPLAY_MS = 3000;
@@ -35,6 +36,7 @@ export function CollectionList({ onSelectCollection }: CollectionListProps = {})
   } = useCollectionStore();
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [ragSettingsOpen, setRagSettingsOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Collection | null>(null);
   const [renamingId, setRenamingId] = useState<number | null>(null);
   const [renameValue, setRenameValue] = useState('');
@@ -146,6 +148,18 @@ export function CollectionList({ onSelectCollection }: CollectionListProps = {})
             data-testid="create-collection-btn"
           >
             +
+          </button>
+          <button
+            onClick={() => setRagSettingsOpen(true)}
+            className="text-slate-500 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+            title="RAG search settings"
+            aria-label="RAG search settings"
+            data-testid="rag-settings-btn"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
           </button>
           <label className="flex items-center gap-1 cursor-pointer" title="Select all collections">
             <input
@@ -271,6 +285,11 @@ export function CollectionList({ onSelectCollection }: CollectionListProps = {})
           onClose={() => setContextMenu(null)}
         />
       )}
+
+      <RagSettingsModal
+        isOpen={ragSettingsOpen}
+        onClose={() => setRagSettingsOpen(false)}
+      />
     </div>
   );
 }

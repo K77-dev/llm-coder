@@ -20,6 +20,8 @@ export interface ChatRequest {
   stream?: boolean;
   projectDir?: string;
   collectionIds?: number[];
+  ragMinScore?: number;
+  ragTopK?: number;
 }
 
 export interface ChatSource {
@@ -308,6 +310,8 @@ export interface LlamaSettings {
   llamaServerPort: number;
   llamaServerPath: string;
   embeddingModel: string;
+  contextSize: number;
+  batchSize: number;
   maxMemoryMb: number;
   cacheTtl: number;
   lruCacheSize: number;

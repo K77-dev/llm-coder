@@ -15,6 +15,8 @@ interface Logger {
 }
 
 const DEFAULT_PORT = 8080;
+const DEFAULT_CONTEXT_SIZE = 8192;
+const DEFAULT_BATCH_SIZE = 8192;
 const HEALTH_CHECK_TIMEOUT_MS = 60_000;
 const HEALTH_CHECK_INTERVAL_MS = 500;
 const GRACEFUL_SHUTDOWN_TIMEOUT_MS = 5_000;
@@ -25,10 +27,14 @@ export class LlamaServerManager {
   private listeners: StateChangeCallback[] = [];
   private readonly logger: Logger;
   private execPath: string;
+  private contextSize: number;
+  private batchSize: number;
 
-  constructor(options?: { logger?: Logger; execPath?: string; port?: number }) {
+  constructor(options?: { logger?: Logger; execPath?: string; port?: number; contextSize?: number; batchSize?: number }) {
     const port = options?.port ?? (Number(process.env.LLAMA_SERVER_PORT) || DEFAULT_PORT);
     this.execPath = options?.execPath ?? process.env.LLAMA_SERVER_PATH ?? 'llama-server';
+    this.contextSize = options?.contextSize ?? DEFAULT_CONTEXT_SIZE;
+    this.batchSize = options?.batchSize ?? DEFAULT_BATCH_SIZE;
     this.logger = options?.logger ?? createDefaultLogger();
     this.state = {
       status: 'stopped',
@@ -62,7 +68,7 @@ export class LlamaServerManager {
     this.setState({ status: 'starting', activeModel: modelFileName, error: null });
     this.logger.info({ component: 'llama-server', modelPath, port: this.state.port }, 'Starting llama-server');
     try {
-      this.process = spawn(this.execPath, ['-m', modelPath, '--port', String(this.state.port), '--embeddings', '--ubatch-size', '8192', '--batch-size', '8192'], {
+      this.process = spawn(this.execPath, ['-m', modelPath, '--port', String(this.state.port), '--embeddings', '--pooling', 'mean', '-c', String(this.contextSize), '--ubatch-size', String(this.batchSize), '--batch-size', String(this.batchSize)], {
         stdio: ['ignore', 'pipe', 'pipe'],
       });
       this.state.pid = this.process.pid ?? null;
@@ -110,13 +116,19 @@ export class LlamaServerManager {
     this.setState({ status: 'stopped', activeModel: null, pid: null, error: null });
   }
 
-  async restart(modelPath: string, config?: { port?: number; execPath?: string }): Promise<void> {
+  async restart(modelPath: string, config?: { port?: number; execPath?: string; contextSize?: number; batchSize?: number }): Promise<void> {
     await this.stop();
     if (config?.port !== undefined) {
       this.state = { ...this.state, port: config.port };
     }
     if (config?.execPath !== undefined) {
       this.execPath = config.execPath;
+    }
+    if (config?.contextSize !== undefined) {
+      this.contextSize = config.contextSize;
+    }
+    if (config?.batchSize !== undefined) {
+      this.batchSize = config.batchSize;
     }
     await this.start(modelPath);
   }

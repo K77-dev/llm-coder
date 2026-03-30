@@ -120,7 +120,7 @@ describe('LlamaServerManager', () => {
       await startPromise;
       expect(mockSpawn).toHaveBeenCalledWith(
         '/usr/local/bin/llama-server',
-        ['-m', '/models/test.gguf', '--port', '9999'],
+        ['-m', '/models/test.gguf', '--port', '9999', '--embeddings', '--pooling', 'mean', '-c', String(8192), '--ubatch-size', String(8192), '--batch-size', String(8192)],
         { stdio: ['ignore', 'pipe', 'pipe'] },
       );
       expect(states).toContain('starting');
@@ -295,7 +295,7 @@ describe('LlamaServerManager', () => {
       expect(manager.getState().port).toBe(7777);
       expect(mockSpawn).toHaveBeenLastCalledWith(
         '/usr/local/bin/llama-server',
-        ['-m', '/models/model-a.gguf', '--port', '7777'],
+        ['-m', '/models/model-a.gguf', '--port', '7777', '--embeddings', '--pooling', 'mean', '-c', String(8192), '--ubatch-size', String(8192), '--batch-size', String(8192)],
         { stdio: ['ignore', 'pipe', 'pipe'] },
       );
     });
@@ -321,7 +321,7 @@ describe('LlamaServerManager', () => {
       await restartPromise;
       expect(mockSpawn).toHaveBeenLastCalledWith(
         '/new/path/llama-server',
-        ['-m', '/models/model-a.gguf', '--port', '9999'],
+        ['-m', '/models/model-a.gguf', '--port', '9999', '--embeddings', '--pooling', 'mean', '-c', String(8192), '--ubatch-size', String(8192), '--batch-size', String(8192)],
         { stdio: ['ignore', 'pipe', 'pipe'] },
       );
     });
@@ -348,7 +348,7 @@ describe('LlamaServerManager', () => {
       expect(manager.getState().port).toBe(5555);
       expect(mockSpawn).toHaveBeenLastCalledWith(
         '/custom/llama',
-        ['-m', '/models/model-a.gguf', '--port', '5555'],
+        ['-m', '/models/model-a.gguf', '--port', '5555', '--embeddings', '--pooling', 'mean', '-c', String(8192), '--ubatch-size', String(8192), '--batch-size', String(8192)],
         { stdio: ['ignore', 'pipe', 'pipe'] },
       );
     });

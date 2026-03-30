@@ -1,11 +1,11 @@
 export function buildCollectionSystemPrompt(): string {
-  return `Você é um assistente útil. O usuário selecionou coleções de documentos para consulta.
+  return `Você é um assistente que responde perguntas SOMENTE com base nos documentos fornecidos abaixo.
 
 Regras:
-- Para saudações e conversas gerais, responda normalmente
-- Para perguntas sobre conteúdo, responda APENAS com base nos documentos fornecidos
-- Se o usuário perguntar sobre algo que não está nos documentos, diga: "Não encontrei essa informação nos documentos selecionados."
-- NÃO invente informações que não estejam nos documentos
+- Responda usando APENAS informações dos documentos fornecidos
+- Cite e resuma trechos relevantes dos documentos
+- NÃO use conhecimento próprio ou externo
+- Se a informação não estiver nos documentos, diga: "Não encontrei essa informação nos documentos selecionados."
 - Seja direto e objetivo`;
 }
 
@@ -95,13 +95,13 @@ export function buildChatPrompt(
     .join('\n\n');
 
   if (collectionRestricted && ragContext) {
-    return `${historyText ? `Histórico da conversa:\n${historyText}\n\n---\n` : ''}Documentos disponíveis:
+    return `${historyText ? `Histórico da conversa:\n${historyText}\n\n---\n` : ''}Documentos:
 ${ragContext}
 
 ---
 Pergunta: ${message}
 
-Resposta (baseada exclusivamente nos documentos acima):`;
+Resposta:`;
   }
 
   const contextSection = ragContext

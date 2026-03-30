@@ -19,6 +19,7 @@ export interface SearchOptions {
   language?: string;
   collectionIds?: number[];
   skipScoreFilter?: boolean;
+  minScore?: number;
 }
 
 export async function searchSimilar(
@@ -30,9 +31,11 @@ export async function searchSimilar(
   const collectionIds = filter?.collectionIds;
   const skipScoreFilter = filter?.skipScoreFilter ?? false;
 
+  logger.info({ query, topK, collectionIds, skipScoreFilter, minScore: filter?.minScore }, 'RAG search started');
+
   // When collectionIds is absent or empty, return no results (PRD requisito 20)
   if (!collectionIds || collectionIds.length === 0) {
-    logger.debug('No collectionIds provided — returning empty results');
+    logger.info('No collectionIds provided — returning empty results');
     return [];
   }
 
@@ -85,9 +88,11 @@ export async function searchSimilar(
     embedding: Buffer;
   }>;
 
+  logger.info({ totalChunks: rows.length, queryEmbeddingLength: queryEmbedding?.length }, 'RAG chunks fetched from DB');
+
   if (rows.length === 0) return [];
 
-  const MIN_SCORE = 0.45;
+  const MIN_SCORE = filter?.minScore ?? 0.45;
 
   // Cosine similarity
   const scored = rows
@@ -105,8 +110,6 @@ export async function searchSimilar(
     })
     .filter((r) => skipScoreFilter || r.score >= MIN_SCORE)
     .sort((a, b) => b.score - a.score)
-    // Deduplicate by filePath — keep highest-scoring entry per unique file
-    .filter((r, i, arr) => arr.findIndex((x) => x.filePath === r.filePath) === i)
     .slice(0, topK);
 
   const elapsed = Date.now() - start;
@@ -122,7 +125,10 @@ export function formatContextFromResults(results: SearchResult[]): string {
 }
 
 function cosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length) return 0;
+  if (a.length !== b.length) {
+    logger.warn({ queryDims: a.length, storedDims: b.length }, 'Embedding dimension mismatch — cosine similarity will be 0');
+    return 0;
+  }
   let dot = 0, normA = 0, normB = 0;
   for (let i = 0; i < a.length; i++) {
     dot += a[i] * b[i];

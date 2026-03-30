@@ -4,6 +4,8 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useChat } from '../../lib/hooks/useChat';
 import { listTree, readFile, getLlamaStatus, TreeEntry } from '../../lib/api';
 import { Message } from './Message';
+import useCollectionStore from '../../stores/collection-store';
+import useRagSettingsStore from '../../stores/rag-settings-store';
 
 interface ChatInterfaceProps {
   compact?: boolean;
@@ -62,6 +64,10 @@ function getFileIconColor(name: string): string {
 
 export function ChatInterface({ compact }: ChatInterfaceProps) {
   const { messages, isLoading, error, sendMessage, clearMessages } = useChat();
+  const selectedIds = useCollectionStore((state) => state.selectedIds);
+  const activeCollectionCount = selectedIds.size;
+  const ragMinScore = useRagSettingsStore((state) => state.minScore);
+  const ragTopK = useRagSettingsStore((state) => state.topK);
   const [input, setInput] = useState('');
   const [llmRunning, setLlmRunning] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -226,7 +232,8 @@ export function ChatInterface({ compact }: ChatInterfaceProps) {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
-    await sendMessage(msg, { useStream: true });
+    const collectionIds = Array.from(selectedIds);
+    await sendMessage(msg, { useStream: true, collectionIds, ragMinScore, ragTopK });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -305,6 +312,23 @@ export function ChatInterface({ compact }: ChatInterfaceProps) {
           </button>
         ))}
       </div>
+    );
+  };
+
+  // Active collections badge
+  const ActiveCollectionsBadge = () => {
+    if (activeCollectionCount === 0) return null;
+    return (
+      <span
+        className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#2d4f1e] border border-[#3d6b29] rounded text-[11px] text-green-300"
+        title={`${activeCollectionCount} ${activeCollectionCount === 1 ? 'colecao ativa' : 'colecoes ativas'}`}
+        data-testid="active-collections-badge"
+      >
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" className="shrink-0">
+          <path d="M1.5 1A1.5 1.5 0 000 2.5v3A1.5 1.5 0 001.5 7h3A1.5 1.5 0 006 5.5v-3A1.5 1.5 0 004.5 1h-3zm0 8A1.5 1.5 0 000 10.5v3A1.5 1.5 0 001.5 15h3A1.5 1.5 0 006 13.5v-3A1.5 1.5 0 004.5 9h-3zm8-8A1.5 1.5 0 008 2.5v3A1.5 1.5 0 009.5 7h3A1.5 1.5 0 0014 5.5v-3A1.5 1.5 0 0012.5 1h-3zm0 8A1.5 1.5 0 008 10.5v3A1.5 1.5 0 009.5 15h3a1.5 1.5 0 001.5-1.5v-3A1.5 1.5 0 0012.5 9h-3z" />
+        </svg>
+        {activeCollectionCount} {activeCollectionCount === 1 ? 'colecao' : 'colecoes'}
+      </span>
     );
   };
 
@@ -387,7 +411,10 @@ export function ChatInterface({ compact }: ChatInterfaceProps) {
 
         {/* Input area */}
         <div className="px-4 py-2 border-t border-[#252526] shrink-0">
-          <AttachedFilesChips />
+          <div className="flex items-center gap-2 flex-wrap">
+            <ActiveCollectionsBadge />
+            <AttachedFilesChips />
+          </div>
           <form onSubmit={handleSubmit} className="flex gap-2">
             <div className="flex-1 relative">
               <MentionDropdown />
@@ -459,7 +486,10 @@ export function ChatInterface({ compact }: ChatInterfaceProps) {
       </div>
 
       <div className="px-6 py-4 border-t border-slate-200 dark:border-neutral-800">
-        <AttachedFilesChips />
+        <div className="flex items-center gap-2 flex-wrap">
+          <ActiveCollectionsBadge />
+          <AttachedFilesChips />
+        </div>
         <form onSubmit={handleSubmit} className="flex gap-2">
           <div className="flex-1 relative">
             <MentionDropdown />
