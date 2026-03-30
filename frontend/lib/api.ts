@@ -19,6 +19,7 @@ export interface ChatRequest {
   filter?: { repo?: string; language?: string };
   stream?: boolean;
   projectDir?: string;
+  collectionIds?: number[];
 }
 
 export interface ChatSource {
@@ -329,4 +330,90 @@ export async function updateLlamaSettings(settings: LlamaSettings): Promise<Save
 
 export async function restartLlamaServer(): Promise<void> {
   await api.post('/llama/restart');
+}
+
+// Collections API
+
+export interface Collection {
+  id: number;
+  name: string;
+  scope: 'local' | 'global';
+  projectDir: string | null;
+  fileCount: number;
+  createdAt: string;
+}
+
+export interface CollectionFile {
+  id: number;
+  collectionId: number;
+  filePath: string;
+  repo: string;
+  indexedAt: string | null;
+}
+
+export interface CreateCollectionParams {
+  name: string;
+  scope: 'local' | 'global';
+  projectDir?: string;
+}
+
+export interface CollectionFileInput {
+  filePath: string;
+  repo: string;
+}
+
+export type IndexingStatus = 'idle' | 'indexing' | 'done' | 'error';
+
+export async function fetchCollections(projectDir?: string): Promise<Collection[]> {
+  const params = projectDir ? { projectDir } : {};
+  const { data } = await api.get<Collection[]>('/collections', { params });
+  return data;
+}
+
+export async function createCollection(params: CreateCollectionParams): Promise<Collection> {
+  const { data } = await api.post<Collection>('/collections', params);
+  return data;
+}
+
+export async function renameCollection(id: number, name: string): Promise<Collection> {
+  const { data } = await api.put<Collection>(`/collections/${id}`, { name });
+  return data;
+}
+
+export async function deleteCollection(id: number): Promise<void> {
+  await api.delete(`/collections/${id}`);
+}
+
+export async function fetchCollectionFiles(collectionId: number): Promise<CollectionFile[]> {
+  const { data } = await api.get<CollectionFile[]>(`/collections/${collectionId}/files`);
+  return data;
+}
+
+export async function addCollectionFiles(
+  collectionId: number,
+  files: CollectionFileInput[]
+): Promise<{ message: string }> {
+  const { data } = await api.post<{ message: string }>(
+    `/collections/${collectionId}/files`,
+    { files }
+  );
+  return data;
+}
+
+export async function removeCollectionFile(collectionId: number, fileId: number): Promise<void> {
+  await api.delete(`/collections/${collectionId}/files/${fileId}`);
+}
+
+export interface IndexingStatusResponse {
+  status: IndexingStatus;
+  progress: number;
+}
+
+export async function fetchIndexingStatus(collectionId: number): Promise<IndexingStatusResponse> {
+  const { data } = await api.get<IndexingStatusResponse>(`/collections/${collectionId}/status`);
+  return data;
+}
+
+export async function reindexCollection(collectionId: number): Promise<void> {
+  await api.post(`/collections/${collectionId}/reindex`);
 }

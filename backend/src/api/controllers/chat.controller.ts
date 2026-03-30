@@ -19,6 +19,7 @@ const chatSchema = z.object({
         repo: z.string().optional(),
         language: z.string().optional(),
     }).optional(),
+    collectionIds: z.array(z.number().int().positive()).optional(),
     stream: z.boolean().optional().default(false),
     projectDir: z.string().optional(),
 });
@@ -26,16 +27,34 @@ const chatSchema = z.object({
 export async function chat(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
         const body = chatSchema.parse(req.body);
-        const { message, model, history, filter, stream, projectDir } = body;
+        const { message, model, history, filter, collectionIds, stream, projectDir } = body;
 
-        // RAG: Search for relevant code context
-        const searchResults = await searchSimilar(message, 5, filter).catch(() => []);
+        // RAG: Search for relevant code context filtered by selected collections
+        const collectionRestricted = !!(collectionIds && collectionIds.length > 0);
+        const searchFilter = { ...filter, collectionIds, skipScoreFilter: collectionRestricted };
+        const topK = collectionRestricted ? 20 : 5;
+        const searchResults = await searchSimilar(message, topK, searchFilter).catch(() => []);
         const ragContext = searchResults.length > 0
             ? formatContextFromResults(searchResults)
             : undefined;
 
-        const prompt = buildChatPrompt(message, history, ragContext);
-        const systemPrompt = buildSystemPrompt(projectDir);
+        if (collectionRestricted && !ragContext) {
+            const noResultsMessage = 'Não encontrei informações relevantes nas coleções selecionadas para responder a essa pergunta. Tente reformular a pergunta ou selecione outras coleções.';
+            if (stream) {
+                res.setHeader('Content-Type', 'text/event-stream');
+                res.setHeader('Cache-Control', 'no-cache');
+                res.setHeader('Connection', 'keep-alive');
+                res.write(`data: ${JSON.stringify({ text: noResultsMessage })}\n\n`);
+                res.write('data: [DONE]\n\n');
+                res.end();
+                return;
+            }
+            res.json({ response: noResultsMessage, sources: [], model: 'local' as const });
+            return;
+        }
+
+        const prompt = buildChatPrompt(message, history, ragContext, collectionRestricted);
+        const systemPrompt = buildSystemPrompt(projectDir, collectionRestricted);
         const tokenCount = estimateTokenCount(prompt);
 
         const useClaudeApi =

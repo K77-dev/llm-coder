@@ -8,18 +8,10 @@ export interface CodeChunk {
 }
 
 const LANGUAGE_MAP: Record<string, string> = {
-  '.java': 'java',
-  '.ts': 'typescript',
-  '.tsx': 'typescript',
-  '.js': 'javascript',
-  '.jsx': 'javascript',
-  '.py': 'python',
-  '.sol': 'solidity',
-  '.yaml': 'yaml',
-  '.yml': 'yaml',
-  '.json': 'json',
-  '.xml': 'xml',
-  '.sql': 'sql',
+  '.md': 'markdown',
+  '.pdf': 'pdf',
+  '.docx': 'plaintext',
+  '.doc': 'plaintext',
 };
 
 const CHUNK_SIZE = 150; // lines
@@ -85,8 +77,10 @@ function generateSummary(code: string, language: string, filePath: string): stri
 }
 
 export const INDEXABLE_EXTENSIONS = new Set([
-  '.java', '.ts', '.tsx', '.js', '.jsx',
-  '.py', '.sol', '.kt', '.go', '.rs',
+  '.md',
+  '.pdf',
+  '.docx',
+  '.doc',
 ]);
 
 export function isIndexable(filePath: string): boolean {

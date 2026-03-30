@@ -1,4 +1,17 @@
-export function buildSystemPrompt(projectDir?: string): string {
+export function buildCollectionSystemPrompt(): string {
+  return `Você é um assistente que responde perguntas EXCLUSIVAMENTE com base nos documentos fornecidos abaixo.
+
+Regras obrigatórias:
+- Responda APENAS com informações presentes nos documentos fornecidos
+- Se a informação não estiver nos documentos, diga: "Não encontrei essa informação nos documentos selecionados."
+- NÃO use conhecimento externo, mesmo que você o possua
+- Seja direto e objetivo na resposta`;
+}
+
+export function buildSystemPrompt(projectDir?: string, collectionRestricted?: boolean): string {
+  if (collectionRestricted) {
+    return buildCollectionSystemPrompt();
+  }
   const defaultPath = projectDir ? projectDir : '~/Desktop';
   return `Você é um assistente de programação. Responda de forma direta, natural e útil.
 
@@ -72,12 +85,23 @@ Responda baseado no contexto acima. Se o contexto não for suficiente, indique o
 export function buildChatPrompt(
   message: string,
   history: Array<{ role: 'user' | 'assistant'; content: string }>,
-  ragContext?: string
+  ragContext?: string,
+  collectionRestricted?: boolean
 ): string {
   const historyText = history
     .slice(-6)
     .map((h) => `${h.role === 'user' ? 'Usuário' : 'Assistente'}: ${h.content}`)
     .join('\n\n');
+
+  if (collectionRestricted && ragContext) {
+    return `${historyText ? `Histórico da conversa:\n${historyText}\n\n---\n` : ''}Documentos disponíveis:
+${ragContext}
+
+---
+Pergunta: ${message}
+
+Resposta (baseada exclusivamente nos documentos acima):`;
+  }
 
   const contextSection = ragContext
     ? `\nContexto do codebase:\n${ragContext}\n\n---\n`

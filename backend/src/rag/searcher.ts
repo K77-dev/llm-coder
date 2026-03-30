@@ -14,12 +14,27 @@ export interface SearchResult {
   score: number;
 }
 
+export interface SearchOptions {
+  repo?: string;
+  language?: string;
+  collectionIds?: number[];
+  skipScoreFilter?: boolean;
+}
+
 export async function searchSimilar(
   query: string,
   topK = 5,
-  filter?: { repo?: string; language?: string }
+  filter?: SearchOptions
 ): Promise<SearchResult[]> {
   const start = Date.now();
+  const collectionIds = filter?.collectionIds;
+  const skipScoreFilter = filter?.skipScoreFilter ?? false;
+
+  // When collectionIds is absent or empty, return no results (PRD requisito 20)
+  if (!collectionIds || collectionIds.length === 0) {
+    logger.debug('No collectionIds provided — returning empty results');
+    return [];
+  }
 
   const textHash = crypto.createHash('sha256').update(query).digest('hex');
   let queryEmbedding = embeddingCache.get(textHash);
@@ -35,6 +50,11 @@ export async function searchSimilar(
   const conditions: string[] = [];
   const params: unknown[] = [];
 
+  // Filter by collection_files JOIN
+  const placeholders = collectionIds.map(() => '?').join(', ');
+  conditions.push(`cf.collection_id IN (${placeholders})`);
+  params.push(...collectionIds);
+
   if (filter?.repo) {
     conditions.push('c.repo = ?');
     params.push(filter.repo);
@@ -46,12 +66,14 @@ export async function searchSimilar(
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-  // Fetch all chunks with vectors (for brute-force cosine similarity)
-  // In production with sqlite-vec, use: SELECT vec_distance_cosine(v.embedding, ?) as score
+  // Fetch chunks with vectors filtered by collections
+  // JOIN collection_files to restrict to selected collections
+  // DISTINCT avoids duplicates when a file belongs to multiple collections
   const rows = db.prepare(`
-    SELECT c.id, c.repo, c.file_path, c.language, c.code, c.summary, v.embedding
+    SELECT DISTINCT c.id, c.repo, c.file_path, c.language, c.code, c.summary, v.embedding
     FROM code_chunks c
     JOIN vectors v ON v.chunk_id = c.id
+    JOIN collection_files cf ON cf.repo = c.repo AND cf.file_path = c.file_path
     ${whereClause}
   `).all(...params) as Array<{
     id: number;
@@ -81,7 +103,7 @@ export async function searchSimilar(
         score: cosineSimilarity(queryEmbedding!, embedding),
       };
     })
-    .filter((r) => r.score >= MIN_SCORE)
+    .filter((r) => skipScoreFilter || r.score >= MIN_SCORE)
     .sort((a, b) => b.score - a.score)
     // Deduplicate by filePath — keep highest-scoring entry per unique file
     .filter((r, i, arr) => arr.findIndex((x) => x.filePath === r.filePath) === i)

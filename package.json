@@ -18,6 +18,7 @@
     "index:stop": "pkill -f 'index-repos' || true",
     "index:full": "npx ts-node scripts/index-repos.ts --full",
     "cache:clean": "npx ts-node scripts/cache-clean.ts",
+    "test:e2e": "npx playwright test",
     "stop": "pkill -f 'next|express|node.*dev' || true",
     "clean": "rm -rf backend/node_modules frontend/node_modules node_modules",
     "electron:compile": "tsc -p electron/tsconfig.json",
@@ -47,6 +48,7 @@
     }
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@types/node": "^25.5.0",
     "concurrently": "^8.2.2",
     "electron": "^39.8.1",

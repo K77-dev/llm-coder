@@ -248,8 +248,13 @@ export async function generateEmbedding(text: string): Promise<number[]> {
       const response = await axios.post(`${LLM_BASE_URL}/embedding`, {
         content: text,
       });
-      const data = response.data as { embedding: number[] };
-      return data.embedding;
+      // llama-server returns [{index, embedding: [[...]]}] or {embedding: [...]}
+      const raw = response.data;
+      if (Array.isArray(raw) && raw[0]?.embedding) {
+        const emb = raw[0].embedding;
+        return Array.isArray(emb[0]) ? emb[0] : emb;
+      }
+      return (raw as { embedding: number[] }).embedding;
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 501) {
         throw new Error('Embeddings are not supported. Start llama-server with --embeddings flag');
