@@ -439,7 +439,7 @@ export function ChatInterface({ compact }: ChatInterfaceProps) {
               <button
                 type="button"
                 onClick={abort}
-                className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded text-[13px] font-medium transition-colors shrink-0"
+                className="px-2.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-[13px] font-medium transition-colors shrink-0 self-center"
                 title="Stop generation"
                 aria-label="Stop generation"
               >
@@ -451,7 +451,7 @@ export function ChatInterface({ compact }: ChatInterfaceProps) {
               <button
                 type="submit"
                 disabled={!llmRunning || (!input.trim() && attachedFiles.length === 0)}
-                className="px-3 py-2 bg-[#0e639c] hover:bg-[#1177bb] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded text-[13px] font-medium transition-colors shrink-0"
+                className="px-2.5 py-1.5 bg-[#0e639c] hover:bg-[#1177bb] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded text-[13px] font-medium transition-colors shrink-0 self-center"
                 title="Send message"
                 aria-label="Send message"
               >
