@@ -38,21 +38,6 @@ export async function chat(req: Request, res: Response, next: NextFunction): Pro
             ? formatContextFromResults(searchResults)
             : undefined;
 
-        if (collectionRestricted && !ragContext) {
-            const noResultsMessage = 'Não encontrei informações relevantes nas coleções selecionadas para responder a essa pergunta. Tente reformular a pergunta ou selecione outras coleções.';
-            if (stream) {
-                res.setHeader('Content-Type', 'text/event-stream');
-                res.setHeader('Cache-Control', 'no-cache');
-                res.setHeader('Connection', 'keep-alive');
-                res.write(`data: ${JSON.stringify({ text: noResultsMessage })}\n\n`);
-                res.write('data: [DONE]\n\n');
-                res.end();
-                return;
-            }
-            res.json({ response: noResultsMessage, sources: [], model: 'local' as const });
-            return;
-        }
-
         const prompt = buildChatPrompt(message, history, ragContext, collectionRestricted);
         const systemPrompt = buildSystemPrompt(projectDir, collectionRestricted);
         const tokenCount = estimateTokenCount(prompt);
