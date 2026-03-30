@@ -10,7 +10,7 @@ interface RagSettingsStore {
 }
 
 const DEFAULTS = {
-  minScore: 0.45,
+  minScore: 0.2,
   topK: 20,
 };
 

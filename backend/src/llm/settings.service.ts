@@ -7,6 +7,8 @@ export interface LlamaSettings {
   llamaServerPort: number;
   llamaServerPath: string;
   embeddingModel: string;
+  embeddingServerPort: number;
+  embeddingModelFile: string;
   contextSize: number;
   batchSize: number;
   maxMemoryMb: number;
@@ -19,6 +21,8 @@ export const DEFAULT_SETTINGS: LlamaSettings = {
   llamaServerPort: 8080,
   llamaServerPath: 'llama-server',
   embeddingModel: 'nomic-embed-text',
+  embeddingServerPort: 8081,
+  embeddingModelFile: 'nomic-embed-text-v1.5.Q4_K_M.gguf',
   contextSize: 8192,
   batchSize: 8192,
   maxMemoryMb: 13000,
@@ -34,6 +38,8 @@ export const llamaSettingsSchema = z.object({
   llamaServerPort: z.number().int().min(MIN_PORT).max(MAX_PORT),
   llamaServerPath: z.string().min(1),
   embeddingModel: z.string().min(1),
+  embeddingServerPort: z.number().int().min(MIN_PORT).max(MAX_PORT),
+  embeddingModelFile: z.string(),
   contextSize: z.number().int().min(0).max(16384),
   batchSize: z.number().int().min(0).max(16384),
   maxMemoryMb: z.number().int().gt(0),
@@ -53,6 +59,8 @@ const SETTING_KEYS: SettingKeyMapping[] = [
   { field: 'llamaServerPort', dbKey: 'llama_server_port', envVar: 'LLAMA_SERVER_PORT', type: 'number' },
   { field: 'llamaServerPath', dbKey: 'llama_server_path', envVar: 'LLAMA_SERVER_PATH', type: 'string' },
   { field: 'embeddingModel', dbKey: 'embedding_model', envVar: 'EMBEDDING_MODEL', type: 'string' },
+  { field: 'embeddingServerPort', dbKey: 'embedding_server_port', envVar: 'EMBEDDING_SERVER_PORT', type: 'number' },
+  { field: 'embeddingModelFile', dbKey: 'embedding_model_file', envVar: 'EMBEDDING_MODEL_FILE', type: 'string' },
   { field: 'contextSize', dbKey: 'context_size', envVar: 'CONTEXT_SIZE', type: 'number' },
   { field: 'batchSize', dbKey: 'batch_size', envVar: 'BATCH_SIZE', type: 'number' },
   { field: 'maxMemoryMb', dbKey: 'max_memory_mb', envVar: 'MAX_MEMORY_MB', type: 'number' },
@@ -64,6 +72,8 @@ const RESTART_REQUIRED_FIELDS: ReadonlySet<keyof LlamaSettings> = new Set([
   'llamaModelsDir',
   'llamaServerPort',
   'llamaServerPath',
+  'embeddingServerPort',
+  'embeddingModelFile',
   'contextSize',
   'batchSize',
 ]);

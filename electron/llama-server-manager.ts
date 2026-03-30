@@ -29,12 +29,14 @@ export class LlamaServerManager {
   private execPath: string;
   private contextSize: number;
   private batchSize: number;
+  private readonly mode: 'chat' | 'embedding';
 
-  constructor(options?: { logger?: Logger; execPath?: string; port?: number; contextSize?: number; batchSize?: number }) {
+  constructor(options?: { logger?: Logger; execPath?: string; port?: number; contextSize?: number; batchSize?: number; mode?: 'chat' | 'embedding' }) {
     const port = options?.port ?? (Number(process.env.LLAMA_SERVER_PORT) || DEFAULT_PORT);
     this.execPath = options?.execPath ?? process.env.LLAMA_SERVER_PATH ?? 'llama-server';
     this.contextSize = options?.contextSize ?? DEFAULT_CONTEXT_SIZE;
     this.batchSize = options?.batchSize ?? DEFAULT_BATCH_SIZE;
+    this.mode = options?.mode ?? 'chat';
     this.logger = options?.logger ?? createDefaultLogger();
     this.state = {
       status: 'stopped',
@@ -68,7 +70,10 @@ export class LlamaServerManager {
     this.setState({ status: 'starting', activeModel: modelFileName, error: null });
     this.logger.info({ component: 'llama-server', modelPath, port: this.state.port }, 'Starting llama-server');
     try {
-      this.process = spawn(this.execPath, ['-m', modelPath, '--port', String(this.state.port), '--embeddings', '--pooling', 'mean', '-c', String(this.contextSize), '--ubatch-size', String(this.batchSize), '--batch-size', String(this.batchSize)], {
+      const args = this.mode === 'embedding'
+        ? ['-m', modelPath, '--port', String(this.state.port), '--embeddings', '--pooling', 'mean', '-c', '8192', '--ubatch-size', '8192', '--batch-size', '8192']
+        : ['-m', modelPath, '--port', String(this.state.port), '-c', String(this.contextSize), '--ubatch-size', String(this.batchSize), '--batch-size', String(this.batchSize)];
+      this.process = spawn(this.execPath, args, {
         stdio: ['ignore', 'pipe', 'pipe'],
       });
       this.state.pid = this.process.pid ?? null;

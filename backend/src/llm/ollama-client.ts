@@ -3,6 +3,8 @@ import { logger } from '../utils/logger';
 
 const LLAMA_SERVER_PORT = process.env.LLAMA_SERVER_PORT || '8080';
 const LLM_BASE_URL = process.env.LLM_HOST || `http://localhost:${LLAMA_SERVER_PORT}`;
+const EMBEDDING_SERVER_PORT = process.env.EMBEDDING_SERVER_PORT || '8081';
+const EMBEDDING_BASE_URL = process.env.EMBEDDING_HOST || `http://localhost:${EMBEDDING_SERVER_PORT}`;
 const DEFAULT_MODEL = process.env.LLM_MODEL || 'default';
 
 export type RuntimeType = 'ollama' | 'llama-server' | 'unavailable';
@@ -236,19 +238,41 @@ async function* streamLlamaServerResponse(
   }
 }
 
+const MAX_EMBEDDING_CHARS = 3500;
+
 export async function generateEmbedding(text: string): Promise<number[]> {
+  // Truncate to avoid exceeding embedding model context window
+  const truncated = text.length > MAX_EMBEDDING_CHARS ? text.slice(0, MAX_EMBEDDING_CHARS) : text;
+
+  // Try dedicated embedding server first (port 8081)
+  try {
+    const response = await axios.post(`${EMBEDDING_BASE_URL}/embedding`, {
+      content: truncated,
+    }, { timeout: 10000 });
+    const raw = response.data;
+    if (Array.isArray(raw) && raw[0]?.embedding) {
+      const emb = raw[0].embedding;
+      return Array.isArray(emb[0]) ? emb[0] : emb;
+    }
+    return (raw as { embedding: number[] }).embedding;
+  } catch (embError) {
+    const msg = embError instanceof Error ? embError.message : String(embError);
+    const status = (embError as { response?: { status?: number; data?: unknown } })?.response?.status;
+    const data = (embError as { response?: { data?: unknown } })?.response?.data;
+    logger.warn({ port: EMBEDDING_SERVER_PORT, url: EMBEDDING_BASE_URL, error: msg, status, responseData: data, textLen: text.length }, 'Dedicated embedding server failed, falling back');
+  }
+
+  // Fallback: use main LLM server or Ollama
   const runtime = await detectRuntime();
   if (runtime === 'unavailable') {
     throw new Error('No LLM runtime available for embeddings');
   }
 
   if (runtime === 'llama-server') {
-    // Use llama-server embeddings endpoint
     try {
       const response = await axios.post(`${LLM_BASE_URL}/embedding`, {
-        content: text,
+        content: truncated,
       });
-      // llama-server returns [{index, embedding: [[...]]}] or {embedding: [...]}
       const raw = response.data;
       if (Array.isArray(raw) && raw[0]?.embedding) {
         const emb = raw[0].embedding;
@@ -257,7 +281,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
       return (raw as { embedding: number[] }).embedding;
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 501) {
-        throw new Error('Embeddings are not supported. Start llama-server with --embeddings flag');
+        throw new Error('Embeddings are not supported. Start llama-server with --embeddings flag or configure a dedicated embedding model');
       }
       throw error;
     }

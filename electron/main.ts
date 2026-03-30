@@ -33,6 +33,7 @@ let mainWindow: BrowserWindowType | null = null;
 let backendProcess: ChildProcess | null = null;
 let frontendProcess: ChildProcess | null = null;
 let llamaManager: LlamaServerManager | null = null;
+let embeddingManager: LlamaServerManager | null = null;
 let unsubscribeLlamaState: (() => void) | null = null;
 
 // ── Resolve paths ────────────────────────────────────────────────────────────
@@ -149,6 +150,8 @@ function waitForFrontend(maxMs = 60_000): Promise<void> {
 
 function initializeLlamaManager(): void {
   llamaManager = new LlamaServerManager();
+  const embeddingPort = Number(process.env.EMBEDDING_SERVER_PORT) || 8081;
+  embeddingManager = new LlamaServerManager({ port: embeddingPort, mode: 'embedding' });
   registerLlamaIpcHandlers();
   subscribeToLlamaStateChanges();
 }
@@ -187,10 +190,15 @@ function registerLlamaIpcHandlers(): void {
       throw new Error('LlamaServerManager not initialized');
     }
     await llamaManager.stop();
+    if (embeddingManager) {
+      await embeddingManager.stop();
+    }
     llamaManager = new LlamaServerManager({
       port: config.port,
       execPath: config.execPath,
     });
+    const embeddingPort = Number(process.env.EMBEDDING_SERVER_PORT) || 8081;
+    embeddingManager = new LlamaServerManager({ port: embeddingPort, mode: 'embedding' });
     subscribeToLlamaStateChanges();
     if (config.modelsDir) {
       process.env.LLAMA_MODELS_DIR = config.modelsDir;
@@ -267,6 +275,66 @@ async function autoStartLlama(): Promise<void> {
   } catch (err) {
     console.error('[llama] Failed to auto-start llama-server:', err);
   }
+  // Auto-start embedding server
+  await autoStartEmbeddingServer();
+}
+
+async function autoStartEmbeddingServer(): Promise<void> {
+  if (!embeddingManager) return;
+  const modelsDir = process.env.LLAMA_MODELS_DIR;
+  if (!modelsDir) return;
+  // Wait for backend to be ready, then load setting via API
+  let embeddingModelFile: string | null = null;
+  for (let i = 0; i < 15; i++) {
+    try {
+      const result = require('child_process').execSync(
+        `curl -s http://localhost:${BACKEND_PORT}/api/llama/settings`,
+        { timeout: 3000, encoding: 'utf-8' }
+      );
+      const settings = JSON.parse(result);
+      if (settings.embeddingModelFile) {
+        embeddingModelFile = settings.embeddingModelFile;
+        break;
+      }
+    } catch { /* backend not ready */ }
+    await new Promise(r => setTimeout(r, 2000));
+  }
+  if (!embeddingModelFile) {
+    console.log('[embedding] No embedding model configured, skipping auto-start');
+    return;
+  }
+  const modelPath = path.join(modelsDir, embeddingModelFile);
+  if (!fs.existsSync(modelPath)) {
+    console.log(`[embedding] Model file not found: ${modelPath}`);
+    return;
+  }
+  try {
+    await embeddingManager.start(modelPath);
+    console.log(`[embedding] Embedding server started with ${embeddingModelFile}`);
+  } catch (err) {
+    console.error('[embedding] Failed to auto-start embedding server:', err);
+  }
+}
+
+function loadSetting(key: string): string | null {
+  // Try loading from backend's DB via HTTP API (backend must be running)
+  try {
+    const result = require('child_process').execSync(
+      `curl -s http://localhost:${BACKEND_PORT}/api/llama/settings`,
+      { timeout: 5000, encoding: 'utf-8' }
+    );
+    const settings = JSON.parse(result);
+    const camelKey = key.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+    if (settings[camelKey] !== undefined && settings[camelKey] !== '') {
+      return String(settings[camelKey]);
+    }
+  } catch { /* backend not ready yet */ }
+  // Fallback: try require
+  try {
+    const { getLlamaSetting } = require(resolveFromRoot('backend', 'dist', 'db', 'sqlite-client'));
+    return getLlamaSetting(key);
+  } catch { /* DB not initialized */ }
+  return null;
 }
 
 function persistLastActiveModel(fileName: string): void {
@@ -279,13 +347,7 @@ function persistLastActiveModel(fileName: string): void {
 }
 
 function loadLastActiveModel(): string | null {
-  try {
-    const { getLlamaSetting } = require(resolveFromRoot('backend', 'dist', 'db', 'sqlite-client'));
-    return getLlamaSetting('last_active_model');
-  } catch (err) {
-    console.error('[llama] Failed to load last active model:', err);
-    return null;
-  }
+  return loadSetting('last_active_model');
 }
 
 // ── Create window ────────────────────────────────────────────────────────────
@@ -381,6 +443,12 @@ app.on('before-quit', () => {
       console.error('[llama] Error stopping llama-server during quit:', err);
     });
     llamaManager = null;
+  }
+  if (embeddingManager) {
+    embeddingManager.stop().catch((err) => {
+      console.error('[embedding] Error stopping embedding server during quit:', err);
+    });
+    embeddingManager = null;
   }
 });
 

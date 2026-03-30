@@ -310,6 +310,8 @@ export interface LlamaSettings {
   llamaServerPort: number;
   llamaServerPath: string;
   embeddingModel: string;
+  embeddingServerPort: number;
+  embeddingModelFile: string;
   contextSize: number;
   batchSize: number;
   maxMemoryMb: number;

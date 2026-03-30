@@ -36,6 +36,8 @@ const DEFAULT_SETTINGS: LlamaSettings = {
   llamaServerPort: 8080,
   llamaServerPath: 'llama-server',
   embeddingModel: 'nomic-embed-text',
+  embeddingServerPort: 8081,
+  embeddingModelFile: 'nomic-embed-text-v1.5.Q4_K_M.gguf',
   contextSize: 8192,
   batchSize: 8192,
   maxMemoryMb: 13000,
@@ -408,23 +410,59 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 </div>
               </section>
 
-              {/* Section: Embedding Model */}
+              {/* Section: Embedding Server */}
               <section data-testid="section-embedding">
                 <h3 className="text-sm font-medium text-slate-700 dark:text-neutral-300 mb-3">
-                  Embedding Model
+                  Embedding Server
                 </h3>
+                <p className="text-xs text-slate-400 dark:text-neutral-500 mb-3">
+                  Dedicated server for RAG embeddings (port {settings.embeddingServerPort}). Select a .gguf embedding model.
+                </p>
                 <div className="space-y-3">
                   <FieldGroup
-                    label="Model Name"
-                    htmlFor="embeddingModel"
+                    label="Embedding Model File"
+                    htmlFor="embeddingModelFile"
+                    error={undefined}
+                  >
+                    {allModels.length > 0 ? (
+                      <select
+                        id="embeddingModelFile"
+                        value={settings.embeddingModelFile}
+                        onChange={(e) => handleFieldChange('embeddingModelFile', e.target.value)}
+                        className={inputClasses()}
+                      >
+                        <option value="">None (disabled)</option>
+                        {allModels.map((m) => (
+                          <option key={m.fileName} value={m.fileName}>
+                            {m.displayName} ({formatModelSize(m.sizeBytes)})
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        id="embeddingModelFile"
+                        type="text"
+                        value={settings.embeddingModelFile}
+                        onChange={(e) => handleFieldChange('embeddingModelFile', e.target.value)}
+                        placeholder="embedding-model.gguf"
+                        className={inputClasses()}
+                      />
+                    )}
+                  </FieldGroup>
+
+                  <FieldGroup
+                    label="Embedding Server Port"
+                    htmlFor="embeddingServerPort"
                     error={undefined}
                   >
                     <input
-                      id="embeddingModel"
-                      type="text"
-                      value={settings.embeddingModel}
-                      onChange={(e) => handleFieldChange('embeddingModel', e.target.value)}
-                      placeholder={DEFAULT_SETTINGS.embeddingModel}
+                      id="embeddingServerPort"
+                      type="number"
+                      min={MIN_PORT}
+                      max={MAX_PORT}
+                      value={settings.embeddingServerPort || ''}
+                      onChange={(e) => handleFieldChange('embeddingServerPort', e.target.value)}
+                      placeholder={String(DEFAULT_SETTINGS.embeddingServerPort)}
                       className={inputClasses()}
                     />
                   </FieldGroup>
