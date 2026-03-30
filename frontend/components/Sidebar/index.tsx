@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { checkHealth, indexDirectory, getIndexStatus, clearIndex } from '../../lib/api';
+import { checkHealth, indexDirectory, getIndexStatus, clearIndex, Collection } from '../../lib/api';
 import { DirectoryPicker } from '../DirectoryPicker';
+import { CollectionList } from '../CollectionList';
+import { CollectionDetail } from '../CollectionDetail';
 import { SettingsModal } from '../SettingsModal';
 import { useTheme } from '../ThemeProvider';
 import { ModelSelector } from './ModelSelector';
@@ -24,6 +26,7 @@ export function Sidebar() {
   const [indexError, setIndexError] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
   const { theme, toggleTheme } = useTheme();
 
   const loadHealth = useCallback(() => {
@@ -129,6 +132,16 @@ export function Sidebar() {
       </div>
 
       <div className="flex-1 px-4 py-4 space-y-5 overflow-y-auto">
+
+        {/* Collections */}
+        {selectedCollection ? (
+          <CollectionDetail
+            collection={selectedCollection}
+            onBack={() => setSelectedCollection(null)}
+          />
+        ) : (
+          <CollectionList onSelectCollection={setSelectedCollection} />
+        )}
 
         {/* Indexar diretório */}
         <div>

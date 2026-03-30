@@ -6,8 +6,10 @@ import { ChatInterface } from '../components/ChatInterface';
 import { DirectoryPicker } from '../components/DirectoryPicker';
 import { SettingsModal } from '../components/SettingsModal';
 import { ModelSelector } from '../components/Sidebar/ModelSelector';
+import { CollectionList } from '../components/CollectionList';
+import { CollectionDetail } from '../components/CollectionDetail';
 import { useTheme } from '../components/ThemeProvider';
-import { checkHealth, indexDirectory, clearIndex } from '../lib/api';
+import { checkHealth, indexDirectory, clearIndex, Collection } from '../lib/api';
 
 export default function Home() {
   const [projectDir, setProjectDir] = useState('');
@@ -16,6 +18,7 @@ export default function Home() {
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [showPicker, setShowPicker] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
   const { theme, toggleTheme } = useTheme();
 
   const [health, setHealth] = useState<{ ollama?: { available: boolean; models: string[] }; config?: { llmModel: string; embeddingModel: string }; database?: { indexed_chunks: number }; indexing?: { running: boolean } } | null>(null);
@@ -159,6 +162,18 @@ export default function Home() {
               <div className="px-3 py-3 border-b border-[#1e1e1e]">
                 <ModelSelector collapsed={false} />
               </div>
+              {/* Collections */}
+              <div className="px-3 py-3 border-b border-[#1e1e1e]">
+                {selectedCollection ? (
+                  <CollectionDetail
+                    collection={selectedCollection}
+                    onBack={() => setSelectedCollection(null)}
+                  />
+                ) : (
+                  <CollectionList onSelectCollection={setSelectedCollection} />
+                )}
+              </div>
+
               {/* File Explorer */}
               <div className="flex-1 min-h-0 overflow-y-auto">
                 {projectDir ? (
