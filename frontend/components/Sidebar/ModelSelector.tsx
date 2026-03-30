@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { getLlamaModels, selectLlamaModel, getLlamaStatus } from '../../lib/api';
+import { getHiddenModels } from '../SettingsModal';
 
 type ServerStatus = 'stopped' | 'starting' | 'running' | 'error';
 
@@ -36,6 +37,29 @@ function formatFileSize(bytes: number): string {
     return `${(bytes / 1_048_576).toFixed(1)} MB`;
   }
   return `${(bytes / 1024).toFixed(1)} KB`;
+}
+
+function formatErrorMessage(error: string): string {
+  const lower = error.toLowerCase();
+  if (lower.includes('not found') || lower.includes('enoent')) {
+    return 'llama-server nao encontrado. Verifique o caminho em Settings.';
+  }
+  if (lower.includes('out of memory') || lower.includes('outofmemory') || lower.includes('insufficient memory')) {
+    return 'Memoria insuficiente para carregar o modelo. Tente um modelo menor.';
+  }
+  if (lower.includes('health check timed out')) {
+    return 'O modelo demorou demais para carregar. Tente novamente ou use um modelo menor.';
+  }
+  if (lower.includes('address already in use') || lower.includes('eaddrinuse')) {
+    return 'A porta ja esta em uso. Feche outros processos ou mude a porta em Settings.';
+  }
+  if (lower.includes('exited with code')) {
+    return 'O servidor parou inesperadamente. Tente recarregar o modelo.';
+  }
+  if (lower.includes('500') || lower.includes('internal server error')) {
+    return 'Erro interno no servidor. O modelo pode nao ser compativel.';
+  }
+  return 'Ocorreu um erro no servidor LLM.';
 }
 
 const STATUS_CONFIG: Record<ServerStatus, { color: string; label: string }> = {
@@ -83,7 +107,13 @@ export function ModelSelector({ collapsed = false }: ModelSelectorProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [loadingModel, setLoadingModel] = useState<string | null>(null);
   const [transport] = useState<TransportMode>(() => isElectronAvailable() ? 'ipc' : 'http');
+  const [hiddenModels, setHiddenModels] = useState<Set<string>>(() => getHiddenModels());
   const listRef = useRef<HTMLUListElement>(null);
+
+  const visibleModels = useMemo(
+    () => models.filter((m) => !hiddenModels.has(m.fileName)),
+    [models, hiddenModels]
+  );
 
   const fetchModels = useCallback(async () => {
     if (transport === 'ipc') {
@@ -121,6 +151,12 @@ export function ModelSelector({ collapsed = false }: ModelSelectorProps) {
     fetchModels();
     fetchState();
   }, [fetchModels, fetchState]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => setHiddenModels(getHiddenModels());
+    window.addEventListener('models:visibility-changed', handleVisibilityChange);
+    return () => window.removeEventListener('models:visibility-changed', handleVisibilityChange);
+  }, []);
 
   // IPC state change listener
   useEffect(() => {
@@ -181,7 +217,7 @@ export function ModelSelector({ collapsed = false }: ModelSelectorProps) {
   const statusConfig = STATUS_CONFIG[serverState.status];
   const isStarting = serverState.status === 'starting';
   const hasError = serverState.status === 'error';
-  const hasNoModels = models.length === 0;
+  const hasNoModels = visibleModels.length === 0;
 
   return (
     <div>
@@ -225,11 +261,14 @@ export function ModelSelector({ collapsed = false }: ModelSelectorProps) {
 
           {/* Error message */}
           {hasError && serverState.error && (
-            <p className="text-xs text-red-400 leading-relaxed">
-              {serverState.error.includes('not found') || serverState.error.includes('ENOENT')
-                ? 'llama-server not found. Install llama.cpp and ensure llama-server is in your PATH or set LLAMA_SERVER_PATH in .env.'
-                : serverState.error}
-            </p>
+            <div className="px-2 py-2 bg-red-900/20 border border-red-800/40 rounded-lg space-y-1">
+              <p className="text-xs font-medium text-red-400">
+                {formatErrorMessage(serverState.error)}
+              </p>
+              <p className="text-[10px] text-red-500/70 break-all">
+                {serverState.error}
+              </p>
+            </div>
           )}
 
           {/* Empty state */}
@@ -248,7 +287,7 @@ export function ModelSelector({ collapsed = false }: ModelSelectorProps) {
               aria-activedescendant={serverState.activeModel ? `model-${serverState.activeModel}` : undefined}
               className="space-y-1"
             >
-              {models.map((model) => {
+              {visibleModels.map((model) => {
                 const isActive = model.fileName === serverState.activeModel;
                 const isLoading = model.fileName === loadingModel;
                 return (

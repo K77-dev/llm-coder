@@ -1,9 +1,35 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getLlamaSettings, updateLlamaSettings, restartLlamaServer } from '../../lib/api';
+import { getLlamaSettings, updateLlamaSettings, restartLlamaServer, getLlamaModels } from '../../lib/api';
 import type { LlamaSettings } from '../../lib/api';
 import { useToast } from '../../lib/hooks/useToast';
+
+interface ModelInfo {
+  fileName: string;
+  displayName: string;
+  sizeBytes: number;
+}
+
+function formatModelSize(bytes: number): string {
+  if (bytes >= 1_073_741_824) return `${(bytes / 1_073_741_824).toFixed(1)} GB`;
+  if (bytes >= 1_048_576) return `${(bytes / 1_048_576).toFixed(1)} MB`;
+  return `${(bytes / 1024).toFixed(1)} KB`;
+}
+
+export function getHiddenModels(): Set<string> {
+  try {
+    const raw = localStorage.getItem('hiddenModels');
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function saveHiddenModels(hidden: Set<string>): void {
+  localStorage.setItem('hiddenModels', JSON.stringify([...hidden]));
+  window.dispatchEvent(new CustomEvent('models:visibility-changed'));
+}
 
 const DEFAULT_SETTINGS: LlamaSettings = {
   llamaModelsDir: '~/models',
@@ -59,6 +85,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [allModels, setAllModels] = useState<ModelInfo[]>([]);
+  const [hiddenModels, setHiddenModels] = useState<Set<string>>(new Set());
   const modalRef = useRef<HTMLDivElement>(null);
   const firstFocusableRef = useRef<HTMLButtonElement>(null);
   const { showToast } = useToast();
@@ -66,8 +94,13 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const loadSettings = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getLlamaSettings();
+      const [data, modelsResult] = await Promise.all([
+        getLlamaSettings(),
+        getLlamaModels().catch(() => ({ models: [] })),
+      ]);
       setSettings(data);
+      setAllModels(modelsResult.models);
+      setHiddenModels(getHiddenModels());
       setErrors({});
     } catch {
       showToast({ message: 'Failed to load settings', type: 'error' });
@@ -361,6 +394,51 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   </FieldGroup>
                 </div>
               </section>
+
+              {/* Section: Visible Models */}
+              {allModels.length > 0 && (
+                <section data-testid="section-visible-models">
+                  <h3 className="text-sm font-medium text-slate-700 dark:text-neutral-300 mb-3">
+                    Visible Models
+                  </h3>
+                  <p className="text-xs text-slate-400 dark:text-neutral-500 mb-2">
+                    Select which models appear in the sidebar.
+                  </p>
+                  <div className="space-y-1 max-h-48 overflow-y-auto">
+                    {allModels.map((model) => {
+                      const isVisible = !hiddenModels.has(model.fileName);
+                      return (
+                        <label
+                          key={model.fileName}
+                          className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-neutral-800 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isVisible}
+                            onChange={() => {
+                              const next = new Set(hiddenModels);
+                              if (isVisible) {
+                                next.add(model.fileName);
+                              } else {
+                                next.delete(model.fileName);
+                              }
+                              setHiddenModels(next);
+                              saveHiddenModels(next);
+                            }}
+                            className="w-3.5 h-3.5 rounded border-slate-300 dark:border-neutral-600 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-xs text-slate-700 dark:text-neutral-300 truncate flex-1">
+                            {model.displayName}
+                          </span>
+                          <span className="text-xs text-slate-400 dark:text-neutral-500 shrink-0">
+                            {formatModelSize(model.sizeBytes)}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
 
               {/* Section: Cache & Performance */}
               <section data-testid="section-cache">
