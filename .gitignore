@@ -7,3 +7,6 @@ dist/
 *.db
 *.db-shm
 *.db-wal
+*.tsbuildinfo
+playwright-report/
+test-results/

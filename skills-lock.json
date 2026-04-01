@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "skills": {
+    "a11y-testing": {
+      "source": "pedronauck/skills",
+      "sourceType": "github",
+      "computedHash": "8d6c3ad414c99f8356b200dfe08bdf4b3e36f085879d47546b5975d0b98ae66c"
+    },
+    "architectural-analysis": {
+      "source": "pedronauck/skills",
+      "sourceType": "github",
+      "computedHash": "d9599934bcf249166bdc5d28a06042380cfb03d1850c2fc00a66e9741b665a1f"
+    },
+    "context7": {
+      "source": "pedronauck/skills",
+      "sourceType": "github",
+      "computedHash": "23f0178420043f01cd0f00745eb06eaac6f3eee4ef58f87f1ae353c2a408f79c"
+    },
+    "drizzle-safe-migrations": {
+      "source": "pedronauck/skills",
+      "sourceType": "github",
+      "computedHash": "5f32994472dadf53ff74fde49a2aaee425dbad366fbbfceefb3cab6ce28a86eb"
+    },
+    "electron-builder": {
+      "source": "pedronauck/skills",
+      "sourceType": "github",
+      "computedHash": "f7ea4f7ebd53a5e05a9ba96f55333e3882a2455724837c7985cf2309fa919225"
+    },
+    "electron-dev": {
+      "source": "pedronauck/skills",
+      "sourceType": "github",
+      "computedHash": "2ce4fc32d7e92378b22d87e3982f2dea43a2804dc1874879d4fd67d699ba6289"
+    },
+    "mermaid-diagrams": {
+      "source": "pedronauck/skills",
+      "sourceType": "github",
+      "computedHash": "6d36e69adad781f106a2fb4b19ebc22bf0c211babdc0d1ae5822fa65abb48bd8"
+    },
+    "next-best-practices": {
+      "source": "pedronauck/skills",
+      "sourceType": "github",
+      "computedHash": "515ba75178bd44875812d9a560bdf14651f86709f89cf1d4f209638e879807f3"
+    },
+    "no-workarounds": {
+      "source": "pedronauck/skills",
+      "sourceType": "github",
+      "computedHash": "dd6f77b4698f1e67afc6e81aef8515e29f98f0b3d5487bb4940211a38140ce3b"
+    },
+    "skill-best-practices": {
+      "source": "pedronauck/skills",
+      "sourceType": "github",
+      "computedHash": "d53ae5bec0895e4fe802acc4a92441cfeb1cfda5ab18a10f6e96f153cb682c61"
+    },
+    "systematic-debugging": {
+      "source": "pedronauck/skills",
+      "sourceType": "github",
+      "computedHash": "3f23f7773daa3775d68e9ee3377f0953841ef74ac9abb1e3acf6f473c3577228"
+    },
+    "testing-anti-patterns": {
+      "source": "pedronauck/skills",
+      "sourceType": "github",
+      "computedHash": "860d67709789aae9b98c6a58a97ff4e3ab7f280e4663e7ee656d8c6370a29ea5"
+    },
+    "typescript-advanced": {
+      "source": "pedronauck/skills",
+      "sourceType": "github",
+      "computedHash": "5e39d1321dd676555c39ddf873ffa2ac605a6de7841f8093f86d53314d36ef3e"
+    },
+    "verification-before-completion": {
+      "source": "pedronauck/skills",
+      "sourceType": "github",
+      "computedHash": "545a9eb4701e91ff8357e12a1b4731deb7442fce01a42f7eb22e5deb8cb53bd3"
+    },
+    "zod": {
+      "source": "pedronauck/skills",
+      "sourceType": "github",
+      "computedHash": "44f1ae5e377022f537cbad603de0e3329de7afea8567e0e11eb8593e09769441"
+    },
+    "zustand": {
+      "source": "pedronauck/skills",
+      "sourceType": "github",
+      "computedHash": "5602a430065cace096abfee888b3e58f096ac01eff541dce7ee59bd18342ca10"
+    }
+  }
+}
