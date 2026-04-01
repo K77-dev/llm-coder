@@ -58,7 +58,7 @@ describe('CollectionDetail', () => {
     resetStore();
     mockFetchCollectionFiles.mockResolvedValue(MOCK_FILES);
     mockFetchCollections.mockResolvedValue([]);
-    mockFetchIndexingStatus.mockResolvedValue('done');
+    mockFetchIndexingStatus.mockResolvedValue({ status: 'done', progress: 100 });
   });
 
   it('should render collection name in header', async () => {
@@ -189,7 +189,7 @@ describe('CollectionDetail', () => {
 
   it('should show indexing banner when collection is indexing', async () => {
     useCollectionStore.setState({ indexingStatus: { 1: 'indexing' } });
-    mockFetchIndexingStatus.mockResolvedValue('indexing');
+    mockFetchIndexingStatus.mockResolvedValue({ status: 'indexing', progress: 50 });
     await renderAndWaitForFiles();
     await waitFor(() => {
       expect(screen.getByTestId('indexing-banner')).toBeInTheDocument();
@@ -294,7 +294,7 @@ describe('CollectionDetail', () => {
       });
 
       mockFetchIndexingStatus.mockClear();
-      mockFetchIndexingStatus.mockResolvedValueOnce('indexing');
+      mockFetchIndexingStatus.mockResolvedValueOnce({ status: 'indexing', progress: 50 });
       mockFetchCollectionFiles.mockClear();
 
       await act(async () => {
@@ -304,7 +304,7 @@ describe('CollectionDetail', () => {
       expect(mockFetchIndexingStatus).toHaveBeenCalledWith(1);
 
       mockFetchIndexingStatus.mockClear();
-      mockFetchIndexingStatus.mockResolvedValueOnce('done');
+      mockFetchIndexingStatus.mockResolvedValueOnce({ status: 'done', progress: 100 });
       mockFetchCollectionFiles.mockResolvedValue(MOCK_FILES);
 
       await act(async () => {

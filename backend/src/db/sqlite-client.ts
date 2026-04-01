@@ -4,6 +4,8 @@ import os from 'os';
 import fs from 'fs';
 import { logger } from '../utils/logger';
 import { runLlamaSettingsMigration } from './migrations/add-llama-settings';
+import { runCollectionsMigration } from './migrations/add-collections';
+import { runExistingReposMigration, MigrationResult } from './migrations/migrate-existing-repos';
 
 const DB_DIR = path.resolve((process.env.DB_PATH || '~/.code-llm/vectors.db').replace('~', os.homedir())).replace('/vectors.db', '');
 const VECTORS_DB = path.join(DB_DIR, 'vectors.db');
@@ -11,6 +13,7 @@ const CACHE_DB = path.join(DB_DIR, 'cache.db');
 
 let vectorsDb: Database.Database;
 let cacheDb: Database.Database;
+let lastRepoMigrationResult: MigrationResult | null = null;
 
 export function getVectorsDb(): Database.Database {
   if (!vectorsDb) throw new Error('Database not initialized. Call initDatabase() first.');
@@ -35,6 +38,7 @@ export async function initDatabase(): Promise<void> {
   vectorsDb.pragma('journal_mode = WAL');
   cacheDb.pragma('journal_mode = WAL');
   vectorsDb.pragma('synchronous = NORMAL');
+  vectorsDb.pragma('foreign_keys = ON');
 
   // Try to load sqlite-vec extension
   try {
@@ -94,6 +98,8 @@ function runMigrations(): void {
   `);
 
   runLlamaSettingsMigration(vectorsDb);
+  runCollectionsMigration(vectorsDb);
+  lastRepoMigrationResult = runExistingReposMigration(vectorsDb);
 }
 
 export function getLlamaSetting(key: string): string | null {
@@ -113,6 +119,19 @@ export function setLlamaSetting(key: string, value: string): void {
 export function deleteLlamaSetting(key: string): void {
   const db = getVectorsDb();
   db.prepare('DELETE FROM llama_settings WHERE key = ?').run(key);
+}
+
+export function getRepoMigrationResult(): MigrationResult | null {
+  return lastRepoMigrationResult;
+}
+
+export function consumeRepoMigrationNotification(): MigrationResult | null {
+  const result = lastRepoMigrationResult;
+  if (result && !result.alreadyMigrated && result.collectionsCreated > 0) {
+    lastRepoMigrationResult = null;
+    return result;
+  }
+  return null;
 }
 
 export function closeDatabase(): void {

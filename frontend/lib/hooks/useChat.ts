@@ -1,6 +1,14 @@
 import { useState, useCallback, useRef } from 'react';
 import { sendChat, streamChat, ChatMessage, ChatSource, FileChange, RenameChange, DeleteChange, CreateDir, DeleteDir, ListDir, ListSubdirs, ListTree, SearchFiles, CommandSuggestion } from '../api';
 
+function formatElapsed(ms: number): string {
+  const totalSec = Math.round(ms / 1000);
+  if (totalSec < 60) return `${totalSec}s`;
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  return sec > 0 ? `${min}min ${sec}s` : `${min}min`;
+}
+
 const WRITE_FILE_REGEX = /<write_file\s+path="([^"]+)">([\s\S]*?)<\/write_file>/g;
 const RENAME_FILE_REGEX = /<rename(?:_file)?\s+(?:from="|file=")([^"]+)"(?:\s+to="|"\s+to=")([^"]+)"\s*\/?>/g;
 const DELETE_FILE_REGEX = /<delete_file\s+path="([^"]+)"\s*\/?>/g;
@@ -185,6 +193,7 @@ export function useChat() {
 
       if (options?.useStream) {
         const assistantId = crypto.randomUUID();
+        const streamStartTime = Date.now();
         setMessages((prev) => [
           ...prev,
           { id: assistantId, role: 'assistant', content: '', isStreaming: true },
@@ -210,13 +219,15 @@ export function useChat() {
           );
         }
 
+        const elapsed = Date.now() - streamStartTime;
+        const elapsedText = formatElapsed(elapsed);
         const parsed = parseStreamedContent(fullContent);
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId
               ? {
                   ...m,
-                  content: parsed.text,
+                  content: parsed.text + `\n\n<div style="text-align:right;opacity:0.5;font-size:12px">${elapsedText}</div>`,
                   isStreaming: false,
                   fileChanges: parsed.fileChanges.length ? parsed.fileChanges : undefined,
                   renames: parsed.renames.length ? parsed.renames : undefined,
@@ -233,6 +244,7 @@ export function useChat() {
           )
         );
       } else {
+        const nonStreamStartTime = Date.now();
         const response = await sendChat({
           message: content,
           history,
@@ -242,13 +254,14 @@ export function useChat() {
           ragMinScore: options?.ragMinScore,
           ragTopK: options?.ragTopK,
         });
+        const nonStreamElapsed = formatElapsed(Date.now() - nonStreamStartTime);
 
         setMessages((prev) => [
           ...prev,
           {
             id: crypto.randomUUID(),
             role: 'assistant',
-            content: response.response,
+            content: response.response + `\n\n_(${nonStreamElapsed})_`,
             sources: response.sources,
             model: response.model,
             fileChanges: response.fileChanges?.length ? response.fileChanges : undefined,

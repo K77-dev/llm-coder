@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { isAvailable, getLoadedModels } from '../../llm/ollama-client';
-import { getVectorsDb } from '../../db/sqlite-client';
+import { getVectorsDb, consumeRepoMigrationNotification } from '../../db/sqlite-client';
 import { getIndexingStatus } from '../../rag/indexer';
 
 const router = Router();
@@ -11,6 +11,8 @@ router.get('/', async (_req, res) => {
   const db = getVectorsDb();
   const chunkCount = (db.prepare('SELECT COUNT(*) as count FROM code_chunks').get() as { count: number }).count;
   const { isIndexing } = getIndexingStatus();
+  const migrationNotification = consumeRepoMigrationNotification();
+  const collectionCount = (db.prepare('SELECT COUNT(*) as count FROM collections').get() as { count: number }).count;
 
   res.json({
     status: 'ok',
@@ -25,10 +27,18 @@ router.get('/', async (_req, res) => {
     },
     database: {
       indexed_chunks: chunkCount,
+      collection_count: collectionCount,
     },
     indexing: {
       running: isIndexing,
     },
+    ...(migrationNotification ? {
+      migration: {
+        collectionsCreated: migrationNotification.collectionsCreated,
+        filesLinked: migrationNotification.filesLinked,
+        message: `${migrationNotification.collectionsCreated} existing repositories were automatically migrated to collections.`,
+      },
+    } : {}),
   });
 });
 
