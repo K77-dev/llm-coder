@@ -258,16 +258,9 @@ async function autoStartLlama(): Promise<void> {
     console.log('[llama] LLAMA_MODELS_DIR not set, skipping auto-start');
     return;
   }
-  let modelToLoad = loadLastActiveModel();
+  const modelToLoad = loadLastActiveModel();
   if (!modelToLoad) {
-    const availableModels = llamaManager.scanModels(modelsDir);
-    if (availableModels.length > 0) {
-      modelToLoad = availableModels[0].fileName;
-      console.log(`[llama] No last active model found, using first available: ${modelToLoad}`);
-    }
-  }
-  if (!modelToLoad) {
-    console.log('[llama] No models available, skipping auto-start');
+    console.log('[llama] No last active model found, skipping auto-start. Select a model to begin.');
     return;
   }
   const modelPath = path.join(modelsDir, modelToLoad);

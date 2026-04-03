@@ -318,4 +318,17 @@ export class CollectionService {
     }
     return mapRowToCollection(row);
   }
+
+  getGlobalCollections(): Collection[] {
+    const stmt = this.db.prepare(`
+      SELECT c.*, COALESCE(cf.cnt, 0) AS file_count
+      FROM collections c
+      LEFT JOIN (SELECT collection_id, COUNT(*) AS cnt FROM collection_files GROUP BY collection_id) cf
+        ON cf.collection_id = c.id
+      WHERE c.scope = 'global'
+      ORDER BY c.name
+    `);
+    const rows = stmt.all() as CollectionRow[];
+    return rows.map(mapRowToCollection);
+  }
 }

@@ -33,7 +33,7 @@ export async function searchSimilar(
 
   logger.info({ query, topK, collectionIds, skipScoreFilter, minScore: filter?.minScore }, 'RAG search started');
 
-  // When collectionIds is absent or empty, return no results (PRD requisito 20)
+  // When collectionIds is absent or empty, return no results
   if (!collectionIds || collectionIds.length === 0) {
     logger.info('No collectionIds provided — returning empty results');
     return [];

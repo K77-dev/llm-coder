@@ -12,7 +12,6 @@ import { CreateCollectionModal } from './CreateCollectionModal';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 import { ContextMenu } from './ContextMenu';
 import { IndexingStatusIndicator } from './IndexingStatusIndicator';
-import { ScopeBadge } from './ScopeBadge';
 import { RagSettingsModal } from './RagSettingsModal';
 import { getProjectDir } from './get-project-dir';
 
@@ -247,7 +246,6 @@ export function CollectionList({ onSelectCollection }: CollectionListProps = {})
               ({collection.fileCount})
             </span>
             <IndexingStatusIndicator status={indexingStatus[collection.id]} />
-            <ScopeBadge scope={collection.scope} />
             <button
               onClick={(e) => { e.stopPropagation(); setDeleteTarget(collection); }}
               className="opacity-0 group-hover:opacity-100 text-[10px] text-slate-400 dark:text-neutral-600 hover:text-red-500 dark:hover:text-red-400 transition-all shrink-0"

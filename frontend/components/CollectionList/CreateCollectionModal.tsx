@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import { getProjectDir } from './get-project-dir';
 
 interface CreateCollectionModalProps {
   isOpen: boolean;
@@ -10,14 +11,12 @@ interface CreateCollectionModalProps {
 
 export function CreateCollectionModal({ isOpen, onClose, onSubmit }: CreateCollectionModalProps) {
   const [name, setName] = useState('');
-  const [scope, setScope] = useState<'local' | 'global'>('local');
   const [error, setError] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       setName('');
-      setScope('local');
       setError('');
       setTimeout(() => inputRef.current?.focus(), 50);
     }
@@ -62,7 +61,9 @@ export function CreateCollectionModal({ isOpen, onClose, onSubmit }: CreateColle
       setError('Collection name is required');
       return;
     }
-    onSubmit(trimmed, scope);
+    const projectDir = getProjectDir();
+    const autoScope = projectDir ? 'local' : 'global';
+    onSubmit(trimmed, autoScope);
   };
 
   return (
@@ -102,35 +103,6 @@ export function CreateCollectionModal({ isOpen, onClose, onSubmit }: CreateColle
                 {error}
               </p>
             )}
-          </div>
-          <div>
-            <label className="block text-xs text-slate-500 dark:text-neutral-400 mb-1">
-              Scope
-            </label>
-            <div className="flex gap-3">
-              <label className="flex items-center gap-1.5 text-xs text-slate-700 dark:text-neutral-300 cursor-pointer">
-                <input
-                  type="radio"
-                  name="scope"
-                  value="local"
-                  checked={scope === 'local'}
-                  onChange={() => setScope('local')}
-                  data-testid="scope-local"
-                />
-                Local
-              </label>
-              <label className="flex items-center gap-1.5 text-xs text-slate-700 dark:text-neutral-300 cursor-pointer">
-                <input
-                  type="radio"
-                  name="scope"
-                  value="global"
-                  checked={scope === 'global'}
-                  onChange={() => setScope('global')}
-                  data-testid="scope-global"
-                />
-                Global
-              </label>
-            </div>
           </div>
         </div>
         <div className="flex justify-end gap-2 mt-4">

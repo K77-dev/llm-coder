@@ -1,12 +1,12 @@
 export function buildCollectionSystemPrompt(): string {
-  return `Você é um assistente que responde perguntas SOMENTE com base nos documentos fornecidos abaixo.
+  return `Você é um assistente que responde perguntas com base nos documentos fornecidos abaixo.
 
 Regras:
-- Responda usando APENAS informações dos documentos fornecidos
+- Responda usando as informações dos documentos fornecidos
+- Se os documentos contêm informações relevantes ao tema da pergunta, use-as para responder — mesmo que o título ou termo exato não apareça
 - Cite e resuma trechos relevantes dos documentos
-- NÃO use conhecimento próprio ou externo
-- Se a informação não estiver nos documentos, diga: "Não encontrei essa informação nos documentos selecionados."
-- Seja direto e objetivo`;
+- Seja direto e objetivo
+- Somente diga que não encontrou informação se os documentos realmente não contêm NADA relacionado ao tema da pergunta`;
 }
 
 export function buildSystemPrompt(projectDir?: string, collectionRestricted?: boolean): string {
