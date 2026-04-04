@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useChat } from '../../lib/hooks/useChat';
+import { useChatTab } from '../../lib/hooks/useChatTab';
 import { listTree, readFile, getLlamaStatus, TreeEntry } from '../../lib/api';
 import { Message } from './Message';
+import { ChatTabs } from '../ChatTabs';
 import useCollectionStore from '../../stores/collection-store';
+import useChatTabStore from '../../stores/chat-tab-store';
 import useRagSettingsStore from '../../stores/rag-settings-store';
 
 interface ChatInterfaceProps {
@@ -63,9 +65,14 @@ function getFileIconColor(name: string): string {
 }
 
 export function ChatInterface({ compact }: ChatInterfaceProps) {
-  const { messages, isLoading, error, sendMessage, clearMessages, abort } = useChat();
+  const { messages, isLoading, sendMessage, clearMessages, abort } = useChatTab();
+  const [error, setError] = useState<string | null>(null);
   const selectedIds = useCollectionStore((state) => state.selectedIds);
   const activeCollectionCount = selectedIds.size;
+  const activeTabCollectionIds = useChatTabStore((s) => {
+    const tab = s.tabs.find((t) => t.id === s.activeTabId);
+    return tab?.collectionIds || [];
+  });
   const ragMinScore = useRagSettingsStore((state) => state.minScore);
   const ragTopK = useRagSettingsStore((state) => state.topK);
   const [input, setInput] = useState('');
@@ -232,8 +239,15 @@ export function ChatInterface({ compact }: ChatInterfaceProps) {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
-    const collectionIds = Array.from(selectedIds);
-    await sendMessage(msg, { useStream: true, collectionIds, ragMinScore, ragTopK });
+    const collectionIds = activeTabCollectionIds.length > 0
+      ? activeTabCollectionIds
+      : Array.from(selectedIds);
+    try {
+      setError(null);
+      await sendMessage(msg, { useStream: true, collectionIds, ragMinScore, ragTopK });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao enviar mensagem');
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -368,16 +382,11 @@ export function ChatInterface({ compact }: ChatInterfaceProps) {
   if (compact) {
     return (
       <div className="flex flex-col h-full bg-[#1e1e1e]">
+        {/* Chat tabs */}
+        <ChatTabs />
+
         {/* Panel header */}
-        <div className="flex items-center justify-between px-4 py-1 bg-[#252526] border-b border-[#1e1e1e] shrink-0">
-          <div className="flex items-center gap-4">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-white">
-              Chat
-            </span>
-            <span className="text-[11px] text-neutral-500 uppercase tracking-wide cursor-pointer hover:text-neutral-300">
-              Terminal
-            </span>
-          </div>
+        <div className="flex items-center justify-end px-4 py-0.5 bg-[#252526] border-b border-[#1e1e1e] shrink-0">
           <div className="flex items-center gap-2">
             {isLoading && (
               <span className="text-[11px] text-blue-400 animate-pulse">Gerando...</span>
@@ -385,10 +394,11 @@ export function ChatInterface({ compact }: ChatInterfaceProps) {
             <button
               onClick={clearMessages}
               className="text-neutral-500 hover:text-white transition-colors p-1"
-              title="Nova conversa"
+              title="Limpar conversa"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 5v14M5 12h14" />
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
               </svg>
             </button>
           </div>

@@ -17,6 +17,9 @@ let llamaProcess: ChildProcess | null = null;
 let serverStatus: 'stopped' | 'starting' | 'running' | 'error' = 'stopped';
 let activeModelName: string | null = null;
 
+let embeddingProcess: ChildProcess | null = null;
+let embeddingStatus: 'stopped' | 'starting' | 'running' | 'error' = 'stopped';
+
 interface ModelInfo {
   fileName: string;
   displayName: string;
@@ -218,6 +221,114 @@ export function autoStartLlamaServer(): void {
   } catch {
     logger.warn({ component: 'llama-server' }, 'Could not auto-start, DB may not be ready');
   }
+}
+
+function stopEmbeddingServer(): Promise<void> {
+  return new Promise((resolve) => {
+    if (!embeddingProcess) {
+      resolve();
+      return;
+    }
+    const proc = embeddingProcess;
+    embeddingProcess = null;
+    proc.kill('SIGTERM');
+    const timeout = setTimeout(() => {
+      try { proc.kill('SIGKILL'); } catch { /* already dead */ }
+      resolve();
+    }, 5000);
+    timeout.unref();
+    proc.on('exit', () => {
+      clearTimeout(timeout);
+      resolve();
+    });
+  });
+}
+
+async function startEmbeddingServer(modelPath: string, port: string): Promise<void> {
+  await stopEmbeddingServer();
+  const execPath = process.env.LLAMA_SERVER_PATH || 'llama-server';
+  embeddingStatus = 'starting';
+  try {
+    try {
+      const pid = execSync(`lsof -ti :${port}`, { encoding: 'utf-8' }).trim();
+      if (pid) {
+        execSync(`kill ${pid}`);
+        logger.info({ component: 'embedding-server', pid }, 'Killed orphan process on port');
+      }
+    } catch { /* no process on port */ }
+    const proc = spawn(execPath, [
+      '-m', modelPath,
+      '--port', port,
+      '--embeddings',
+      '--pooling', 'mean',
+      '-c', '8192',
+      '--ubatch-size', '8192',
+      '--batch-size', '8192',
+    ], { stdio: 'pipe' });
+    embeddingProcess = proc;
+    proc.stdout?.on('data', (data: Buffer) => {
+      logger.debug({ component: 'embedding-server' }, data.toString().trim());
+    });
+    proc.stderr?.on('data', (data: Buffer) => {
+      logger.debug({ component: 'embedding-server' }, data.toString().trim());
+    });
+    proc.on('error', (err) => {
+      if (embeddingProcess !== proc) return;
+      logger.error({ component: 'embedding-server', error: err.message }, 'Process error');
+      embeddingStatus = 'error';
+      embeddingProcess = null;
+    });
+    proc.on('exit', (code) => {
+      if (embeddingProcess !== proc) return;
+      logger.info({ component: 'embedding-server', code }, 'Process exited');
+      embeddingStatus = 'stopped';
+      embeddingProcess = null;
+    });
+    const startTime = Date.now();
+    const healthUrl = `http://localhost:${port}/health`;
+    while (Date.now() - startTime < 120000) {
+      try {
+        const resp = await axios.get(healthUrl, { timeout: 2000 });
+        if (resp.status === 200) {
+          embeddingStatus = 'running';
+          logger.info({ component: 'embedding-server', port }, 'Embedding server ready');
+          return;
+        }
+      } catch { /* not ready yet */ }
+      await new Promise((r) => { const t = setTimeout(r, 1000); t.unref(); });
+    }
+    embeddingStatus = 'error';
+    logger.error({ component: 'embedding-server' }, 'Health check timeout');
+  } catch (err) {
+    embeddingStatus = 'error';
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    logger.error({ component: 'embedding-server', error: msg }, 'Failed to start');
+  }
+}
+
+export function autoStartEmbeddingServer(): void {
+  if (process.env.ELECTRON_RUN_AS_NODE || process.env.ELECTRON_APP) return;
+  try {
+    const settings = getSettings();
+    if (!settings.embeddingModelFile) return;
+    const modelsDir = settings.llamaModelsDir;
+    if (!modelsDir) return;
+    const resolvedDir = modelsDir.replace('~', os.homedir());
+    const modelPath = path.join(resolvedDir, settings.embeddingModelFile);
+    if (!fs.existsSync(modelPath)) {
+      logger.info({ component: 'embedding-server', modelPath }, 'Embedding model file not found, skipping auto-start');
+      return;
+    }
+    const port = String(settings.embeddingServerPort);
+    logger.info({ component: 'embedding-server', model: settings.embeddingModelFile, port }, 'Auto-starting embedding server');
+    startEmbeddingServer(modelPath, port);
+  } catch {
+    logger.warn({ component: 'embedding-server' }, 'Could not auto-start embedding server');
+  }
+}
+
+export function getEmbeddingStatus(): string {
+  return embeddingStatus;
 }
 
 export async function getSettingsHandler(_req: Request, res: Response, next: NextFunction): Promise<void> {

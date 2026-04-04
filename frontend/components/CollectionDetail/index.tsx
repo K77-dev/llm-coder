@@ -256,8 +256,18 @@ export function CollectionDetail({ collection, onBack, onDeleted }: CollectionDe
       )}
       {status === 'error' && (
         <div className="flex items-center gap-1.5 mb-2 px-2 py-1.5 bg-red-50 dark:bg-red-900/20 rounded-lg" data-testid="error-banner">
-          <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
-          <span className="text-[10px] text-red-600 dark:text-red-400">Indexing failed</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+          <span className="text-[10px] text-red-600 dark:text-red-400 flex-1">Indexing failed — check if the embedding model is running</span>
+          <button
+            onClick={() => {
+              setIndexingStatus(collection.id, 'indexing');
+              reindexCollection(collection.id).catch(() => setIndexingStatus(collection.id, 'error'));
+            }}
+            className="text-[10px] text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 underline shrink-0"
+            data-testid="retry-indexing-btn"
+          >
+            Retry
+          </button>
         </div>
       )}
 

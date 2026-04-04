@@ -6,7 +6,7 @@ import { createRoutes } from './api/routes';
 import { errorHandler } from './api/middleware/error';
 import { logger } from './utils/logger';
 import { initDatabase, getVectorsDb } from './db/sqlite-client';
-import { autoStartLlamaServer } from './api/controllers/llama.controller';
+import { autoStartLlamaServer, autoStartEmbeddingServer } from './api/controllers/llama.controller';
 import { getService } from './api/controllers/collection.controller';
 import { CollectionIndexer } from './rag/collection-indexer';
 import { generateEmbedding } from './llm/ollama-client';
@@ -52,6 +52,7 @@ async function start() {
     // (Electron manages llama-server via LlamaServerManager)
     if (!process.env.ELECTRON_RUN_AS_NODE && !process.env.ELECTRON_APP) {
       autoStartLlamaServer();
+      autoStartEmbeddingServer();
     }
     app.listen(PORT, () => {
       logger.info({ port: PORT }, 'Code LLM Backend started');

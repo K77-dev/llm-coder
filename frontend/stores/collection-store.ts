@@ -17,6 +17,7 @@ interface CollectionStore {
   toggleSelection: (id: number) => void;
   selectAll: () => void;
   deselectAll: () => void;
+  setSelectedIds: (ids: number[]) => void;
   setIndexingStatus: (id: number, status: IndexingStatus, progress?: number) => void;
 }
 
@@ -66,6 +67,10 @@ const useCollectionStore = create<CollectionStore>()(
 
       deselectAll: () => {
         set({ selectedIds: new Set<number>() });
+      },
+
+      setSelectedIds: (ids: number[]) => {
+        set({ selectedIds: new Set(ids) });
       },
 
       setIndexingStatus: (id: number, status: IndexingStatus, progress?: number) => {

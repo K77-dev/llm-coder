@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
-import { Message as MessageType } from '../../lib/hooks/useChat';
+import { ChatTabMessage as MessageType } from '../../stores/chat-tab-store';
 import { writeFile, renameFile, deleteFile, createDir, deleteDir, listDir, listSubdirs as listSubdirsApi, searchFiles as searchFilesApi, listTree as listTreeApi, FileChange, RenameChange, DeleteChange, CreateDir, DeleteDir, ListDir, ListSubdirs, ListTree, SearchFiles, DirEntry, TreeEntry, SearchResult, CommandSuggestion, execCommand } from '../../lib/api';
 
 interface MessageProps {
